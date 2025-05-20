@@ -9,7 +9,7 @@ export function CreateCounter({
 }: {
   onCreated: (id: string) => void;
 }) {
-  const counterPackageId = useNetworkVariable("counterPackageId");
+  const depegSwapPackageId = useNetworkVariable("depegSwapPackageId");
   const suiClient = useSuiClient();
   const {
     mutate: signAndExecute,
@@ -22,7 +22,7 @@ export function CreateCounter({
 
     tx.moveCall({
       arguments: [],
-      target: `${counterPackageId}::counter::create`,
+      target: `${depegSwapPackageId}::counter::create`,
     });
 
     signAndExecute(

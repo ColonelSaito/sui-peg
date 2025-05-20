@@ -8,7 +8,6 @@ module depeg_swap::registry {
     public struct REGISTRY has drop {}
 
     // Error codes
-
     public struct VaultRegistry has key, store {
         id: UID,
         collections: vector<ID>,

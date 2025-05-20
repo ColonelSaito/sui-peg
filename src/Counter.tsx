@@ -12,7 +12,7 @@ import { useState } from "react";
 import ClipLoader from "react-spinners/ClipLoader";
 
 export function Counter({ id }: { id: string }) {
-  const counterPackageId = useNetworkVariable("counterPackageId");
+  const depegSwapPackageId = useNetworkVariable("depegSwapPackageId");
   const suiClient = useSuiClient();
   const currentAccount = useCurrentAccount();
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
@@ -34,12 +34,12 @@ export function Counter({ id }: { id: string }) {
     if (method === "reset") {
       tx.moveCall({
         arguments: [tx.object(id), tx.pure.u64(0)],
-        target: `${counterPackageId}::counter::set_value`,
+        target: `${depegSwapPackageId}::counter::set_value`,
       });
     } else {
       tx.moveCall({
         arguments: [tx.object(id)],
-        target: `${counterPackageId}::counter::increment`,
+        target: `${depegSwapPackageId}::counter::increment`,
       });
     }
 

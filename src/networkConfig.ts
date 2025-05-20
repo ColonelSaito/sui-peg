@@ -1,9 +1,9 @@
 import { getFullnodeUrl } from "@mysten/sui/client";
 import {
-  DEVNET_COUNTER_PACKAGE_ID,
-  TESTNET_COUNTER_PACKAGE_ID,
-  MAINNET_COUNTER_PACKAGE_ID,
-} from "./constants.ts";
+  DEVNET_DEPEG_SWAP_PACKAGE_ID,
+  TESTNET_DEPEG_SWAP_PACKAGE_ID,
+  MAINNET_DEPEG_SWAP_PACKAGE_ID,
+} from "./constants";
 import { createNetworkConfig } from "@mysten/dapp-kit";
 
 const { networkConfig, useNetworkVariable, useNetworkVariables } =
@@ -11,19 +11,19 @@ const { networkConfig, useNetworkVariable, useNetworkVariables } =
     devnet: {
       url: getFullnodeUrl("devnet"),
       variables: {
-        counterPackageId: DEVNET_COUNTER_PACKAGE_ID,
+        depegSwapPackageId: DEVNET_DEPEG_SWAP_PACKAGE_ID,
       },
     },
     testnet: {
       url: getFullnodeUrl("testnet"),
       variables: {
-        counterPackageId: TESTNET_COUNTER_PACKAGE_ID,
+        depegSwapPackageId: TESTNET_DEPEG_SWAP_PACKAGE_ID,
       },
     },
     mainnet: {
       url: getFullnodeUrl("mainnet"),
       variables: {
-        counterPackageId: MAINNET_COUNTER_PACKAGE_ID,
+        depegSwapPackageId: MAINNET_DEPEG_SWAP_PACKAGE_ID,
       },
     },
   });

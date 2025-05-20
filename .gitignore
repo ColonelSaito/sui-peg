@@ -1,2 +1,3 @@
 node_modules/*
-move/depeg-swap/build/*
+move/depeg_swap/build/*
+move/test_coins/build/*
