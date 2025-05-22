@@ -4,6 +4,7 @@ import { Box, Container, Flex, Heading, Separator } from "@radix-ui/themes";
 import { useState } from "react";
 import { CreateVault } from "./CreateVault";
 import { VaultList } from "./VaultList";
+import { Toaster } from 'react-hot-toast';
 
 function App() {
   const currentAccount = useCurrentAccount();
@@ -14,6 +15,7 @@ function App() {
 
   return (
     <>
+      <Toaster position="top-right" />
       <Flex
         position="sticky"
         px="4"

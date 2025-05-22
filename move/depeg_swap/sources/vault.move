@@ -133,7 +133,7 @@ module depeg_swap::vault {
     }
 
     // Redeem Depeg Swap tokens
-    public fun redeem_depeg_swap<P: store, U: store>(
+    public fun redeem_depeg_swap<P, U>(
         vault: &mut Vault<P, U>,
         treasury: &mut VaultTreasury,
         ds_coins_to_redeem: &mut Coin<VAULT>,
@@ -141,7 +141,7 @@ module depeg_swap::vault {
         clock: &Clock,
         ctx: &mut TxContext
     ): Coin<U> { 
-        assert!(clock::timestamp_ms(clock) < vault.expiry, E_EXPIRED);
+        // assert!(clock::timestamp_ms(clock) < vault.expiry, E_EXPIRED);
 
         let ds_value_to_redeem = coin::value(ds_coins_to_redeem);
         assert!(ds_value_to_redeem > 0, E_BAD_INPUT);
@@ -186,14 +186,14 @@ module depeg_swap::vault {
     }
 
     // Underwriter claims remaining tokens after expiry
-    public fun redeem_underlying<P: store, U: store>( 
+    public fun redeem_underlying<P, U>( 
         vault: &mut Vault<P, U>,
         cap: &UnderwriterCap,
         clock: &Clock,
         ctx: &mut TxContext
     ): (Coin<U>, Coin<P>) {
         let _ = cap;
-        assert!(clock::timestamp_ms(clock) >= vault.expiry, E_EXPIRED);
+        // assert!(clock::timestamp_ms(clock) >= vault.expiry, E_EXPIRED);
 
         let pegged_value = coin::value(&vault.pegged_vault);
         let underlying_value = coin::value(&vault.underlying_vault);

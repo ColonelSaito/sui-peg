@@ -7,7 +7,8 @@ module depeg_swap::depeg_swap_tests {
     use sui::test_scenario::ctx;
     
     use depeg_swap::vault::{Self, VAULT, UnderwriterCap, VaultTreasury};
-    use depeg_swap::registry::{Self, VaultRegistry, VaultCollection};
+    use depeg_swap::registry::{Self, VaultRegistry};
+    use depeg_swap::vault::Vault;
     
     public struct PEGGED has store {}
     public struct UNDERLYING has store {}
@@ -113,7 +114,6 @@ module depeg_swap::depeg_swap_tests {
         let mut vault_registry = test_scenario::take_shared<VaultRegistry>(&scenario);
         let mut treasury = test_scenario::take_shared<VaultTreasury>(&scenario);
         
-        let collection_id: ID;
         let vault_id: ID;
         {
             let pegged_coins = test_scenario::take_from_sender<Coin<PEGGED>>(&scenario);
@@ -132,9 +132,6 @@ module depeg_swap::depeg_swap_tests {
                 ctx(&mut scenario)
             );
 
-            let collections = registry::get_collections(&vault_registry);
-            collection_id = *vector::borrow(collections, 0);
-
             test_scenario::next_tx(&mut scenario, ADMIN);
 
             let ds_coins = test_scenario::take_from_sender<Coin<VAULT>>(&scenario);
@@ -144,16 +141,14 @@ module depeg_swap::depeg_swap_tests {
         
         test_scenario::next_tx(&mut scenario, USER);
         
-        let mut collection = test_scenario::take_shared_by_id<VaultCollection<PEGGED, UNDERLYING>>(&scenario, collection_id);
+        let mut vault_obj = test_scenario::take_shared_by_id<Vault<PEGGED, UNDERLYING>>(&scenario, vault_id);
 
         {
             let mut ds_coins = test_scenario::take_from_sender<Coin<VAULT>>(&scenario);
             let mut pegged_coins = test_scenario::take_from_sender<Coin<PEGGED>>(&scenario);
-                        
-            let vault_obj = registry::borrow_mut_vault(&mut collection, vault_id);
             
             let redeemed_underlying_coins = vault::redeem_depeg_swap(
-                vault_obj,
+                &mut vault_obj,
                 &mut treasury,
                 &mut ds_coins,
                 &mut pegged_coins,
@@ -166,9 +161,9 @@ module depeg_swap::depeg_swap_tests {
             transfer::public_transfer(redeemed_underlying_coins, USER);
         };
         
-        test_scenario::return_shared(collection);
         test_scenario::return_shared(treasury);
         test_scenario::return_shared(vault_registry);
+        test_scenario::return_shared(vault_obj);
 
         destroy(clock);
         test_scenario::end(scenario);
@@ -191,7 +186,6 @@ module depeg_swap::depeg_swap_tests {
         let mut vault_registry = test_scenario::take_shared<VaultRegistry>(&scenario);
         let mut treasury = test_scenario::take_shared<VaultTreasury>(&scenario);
         
-        let collection_id: ID;
         let vault_id: ID;
         {
             let pegged_coins = test_scenario::take_from_sender<Coin<PEGGED>>(&scenario);
@@ -200,7 +194,7 @@ module depeg_swap::depeg_swap_tests {
             let current_time_ms = clock::timestamp_ms(&clock);
             let expiry_time_ms = current_time_ms + expiry_offset_ms;
 
-            vault_id =registry::create_vault_collection<PEGGED, UNDERLYING>(
+            vault_id = registry::create_vault_collection<PEGGED, UNDERLYING>(
                 &mut vault_registry,
                 &mut treasury,
                 pegged_coins,
@@ -209,9 +203,6 @@ module depeg_swap::depeg_swap_tests {
                 &clock,
                 ctx(&mut scenario)
             );
-
-            let collections = registry::get_collections(&vault_registry);
-            collection_id = *vector::borrow(collections, 0);
         };
         
         test_scenario::return_shared(vault_registry);
@@ -225,14 +216,13 @@ module depeg_swap::depeg_swap_tests {
         let singleton_vault_registry = test_scenario::take_shared<VaultRegistry>(&scenario);
 
         // Redeem underlying as the underwriter
-        let mut collection = test_scenario::take_shared_by_id<VaultCollection<PEGGED, UNDERLYING>>(&scenario, collection_id);
+        let mut vault_obj = test_scenario::take_shared_by_id<Vault<PEGGED, UNDERLYING>>(&scenario, vault_id);
         
         {
             let underwriter_cap = test_scenario::take_from_sender<UnderwriterCap>(&scenario);
-            let vault_to_redeem = registry::borrow_mut_vault(&mut collection, vault_id);
             
             let (redeemed_underlying, redeemed_pegged) = vault::redeem_underlying(
-                vault_to_redeem,
+                &mut vault_obj,
                 &underwriter_cap,
                 &clock,
                 ctx(&mut scenario)
@@ -246,7 +236,7 @@ module depeg_swap::depeg_swap_tests {
             transfer::public_transfer(underwriter_cap, ADMIN);
         };
         
-        test_scenario::return_shared(collection);
+        test_scenario::return_shared(vault_obj);
         test_scenario::return_shared(singleton_vault_registry);
 
         destroy(clock);

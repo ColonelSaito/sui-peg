@@ -1,11 +1,12 @@
 import { Transaction } from "@mysten/sui/transactions";
-import { Button, Container, Flex, Text, Select } from "@radix-ui/themes";
+import { Button, Container, Flex, Text, Select, Link } from "@radix-ui/themes";
 import { useSignAndExecuteTransaction, useSuiClient, useSuiClientQuery, useCurrentAccount } from "@mysten/dapp-kit";
 import { useNetworkVariable } from "./networkConfig";
 import ClipLoader from "react-spinners/ClipLoader";
 import { useState, ChangeEvent, useMemo } from "react";
 import { TESTNET_VAULT_REGISTRY_ID, TESTNET_VAULT_TREASURY_ID } from "./constants";
 import { type CoinStruct } from "@mysten/sui/client";
+import toast from 'react-hot-toast';
 
 interface CoinOption {
   id: string;
@@ -175,6 +176,7 @@ export function CreateVault({
         return;
       }
 
+    
       // Verify object types
       if (!registry.data?.type?.includes('::registry::VaultRegistry')) {
         console.error('Invalid Registry type:', registry.data?.type);
@@ -263,6 +265,11 @@ export function CreateVault({
       tx.object(selectedUnderlyingCoin.id),
       [tx.pure.u64(amount)]
     );
+    
+    console.log([
+      selectedPeggedCoin.type,
+      selectedUnderlyingCoin.type
+    ])
 
     // Create vault with split coins
     tx.moveCall({
@@ -313,6 +320,14 @@ export function CreateVault({
 
           if (effects?.status?.error) {
             console.error('Transaction failed:', effects.status.error);
+            toast.error(`Transaction failed: ${effects.status.error}`, {
+              duration: 5000,
+              style: {
+                borderRadius: '10px',
+                background: '#333',
+                color: '#fff',
+              },
+            });
             return;
           }
 
@@ -320,13 +335,50 @@ export function CreateVault({
           const vaultId = effects?.created?.[0]?.reference?.objectId;
           if (!vaultId) {
             console.error('No vault created in transaction');
+            toast.error('No vault created in transaction', {
+              duration: 5000,
+              style: {
+                borderRadius: '10px',
+                background: '#333',
+                color: '#fff',
+              },
+            });
             return;
           }
 
+          toast.success(
+            <div>
+              <div>Successfully created vault!</div>
+              <a 
+                href={`https://suiexplorer.com/txblock/${digest}?network=testnet`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{ color: '#0066cc', textDecoration: 'underline' }}
+              >
+                View transaction
+              </a>
+            </div>,
+            {
+              duration: 5000,
+              style: {
+                borderRadius: '10px',
+                background: '#333',
+                color: '#fff',
+              },
+            }
+          );
           onCreated(vaultId);
         },
         onError: (error) => {
           console.error('Transaction error:', error);
+          toast.error(`Transaction error: ${error instanceof Error ? error.message : 'Unknown error'}`, {
+            duration: 5000,
+            style: {
+              borderRadius: '10px',
+              background: '#333',
+              color: '#fff',
+            },
+          });
         }
       },
     );
@@ -438,6 +490,9 @@ export function CreateVault({
         <Button 
           onClick={createVault}
           disabled={!isReady || isTransactionPending || !selectedPeggedCoin || !selectedUnderlyingCoin || !peggedAmount || !underlyingAmount}
+          style={{ 
+            cursor: (!isReady || isTransactionPending || !selectedPeggedCoin || !selectedUnderlyingCoin || !peggedAmount || !underlyingAmount) ? 'default' : 'pointer'
+          }}
         >
           {isTransactionPending ? <ClipLoader size={20} /> : "Create Vault"}
         </Button>

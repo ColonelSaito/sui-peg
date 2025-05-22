@@ -1,34 +1,26 @@
 module depeg_swap::registry {
-    use sui::object_table::{Self, ObjectTable};
     use sui::clock::{Clock};
     use sui::coin::Coin;
-    use depeg_swap::vault::{Self, Vault, VaultTreasury};
+    use depeg_swap::vault::{Self, VaultTreasury};
 
     // Registry witness for initialization
     public struct REGISTRY has drop {}
 
-    // Error codes
     public struct VaultRegistry has key, store {
         id: UID,
-        collections: vector<ID>,
-    }
-
-    // A collection for vaults of a specific coin type pair
-    public struct VaultCollection<phantom P, phantom U> has key, store {
-        id: UID,
-        table: ObjectTable<ID, Vault<P, U>>,
+        vaults: vector<ID>,
     }
 
     fun init(_: REGISTRY, ctx: &mut TxContext) {
         let reg = VaultRegistry { 
             id: object::new(ctx),
-            collections: vector::empty<ID>(),
+            vaults: vector::empty<ID>(),
         };
         transfer::share_object(reg);
     }
 
     // Create a new vault collection for a specific coin type pair
-    #[allow(lint(self_transfer))]
+    #[allow(lint(self_transfer, share_owned))]
     public fun create_vault_collection<P, U>(
         registry: &mut VaultRegistry,
         treasury: &mut VaultTreasury,
@@ -38,14 +30,6 @@ module depeg_swap::registry {
         clock: &Clock,
         ctx: &mut TxContext
     ): ID {
-        let mut collection = VaultCollection<P, U> {
-            id: object::new(ctx),
-            table: object_table::new<ID, Vault<P, U>>(ctx),
-        };
-        
-        let collection_id = object::id(&collection);
-        vector::push_back(&mut registry.collections, collection_id);
-
         // Create the initial vault
         let (ds_coins, vault, underwriter_cap) = vault::create_vault(
             treasury,
@@ -57,27 +41,19 @@ module depeg_swap::registry {
         );
 
         let vault_id = object::id(&vault);
-        object_table::add(&mut collection.table, vault_id, vault);
+        vector::push_back(&mut registry.vaults, vault_id);
 
         // Transfer DS coins to sender
         transfer::public_transfer(ds_coins, tx_context::sender(ctx));
         transfer::public_transfer(underwriter_cap, tx_context::sender(ctx));
-        
-        // Share the collection
-        transfer::share_object(collection);
+        transfer::public_share_object(vault);
+
         vault_id
     }
 
-    // Add a getter for the collections vector
-    public fun get_collections(registry: &VaultRegistry): &vector<ID> {
-        &registry.collections
-    }
-
-    public fun borrow_mut_vault<P: store, U: store>(
-        collection: &mut VaultCollection<P, U>,
-        vault_id: ID
-    ): &mut Vault<P, U> {
-        object_table::borrow_mut(&mut collection.table, vault_id)
+    /// Anyone can see the full list of vault IDs.
+    public fun list_vaults(reg: &VaultRegistry): &vector<ID> {
+        &reg.vaults
     }
 
     #[test_only]
