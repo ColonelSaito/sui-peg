@@ -50,7 +50,7 @@ module depeg_swap::vault {
 
     // Vault structure
     #[allow(lint(coin_field))]
-    public struct Vault<phantom P: store, phantom U: store> has key, store {
+    public struct Vault<phantom P, phantom U> has key, store {
         id: UID,
         pegged_vault: Coin<P>,    
         underlying_vault: Coin<U>, 
@@ -81,27 +81,17 @@ module depeg_swap::vault {
 
         // Freeze the metadata, technially should be updateable for "create_vault"
         transfer::public_freeze_object(metadata);
-
-        // Create and transfer the underwriter cap
-        let underwriter_cap = UnderwriterCap { 
-            id: object::new(ctx),
-        };
-        transfer::transfer(underwriter_cap, tx_context::sender(ctx));
     }
 
     // Create a new vault
-    public(package) fun create_vault<P: store, U: store>(
-        cap: &UnderwriterCap,
+    public(package) fun create_vault<P, U>(
         treasury: &mut VaultTreasury,
         pegged: Coin<P>,
         underlying: Coin<U>,
         expiry: u64,
         clock: &Clock,
         ctx: &mut TxContext
-    ): (Coin<VAULT>, Vault<P, U>) {
-        // Verify the underwriter cap
-        let _ = cap;
-        
+    ): (Coin<VAULT>, Vault<P, U>, UnderwriterCap) {
         let pegged_value = coin::value(&pegged);
         let underlying_value = coin::value(&underlying);
         assert!(pegged_value == underlying_value, E_BAD_INPUT);
@@ -134,7 +124,12 @@ module depeg_swap::vault {
             ds_token_id,
         });
 
-        (depeg_swap_coins, vault)
+        // Create and transfer the underwriter cap
+        let underwriter_cap = UnderwriterCap { 
+            id: object::new(ctx),
+        };
+
+        (depeg_swap_coins, vault, underwriter_cap)
     }
 
     // Redeem Depeg Swap tokens

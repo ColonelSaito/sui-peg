@@ -60,7 +60,6 @@ module depeg_swap::depeg_swap_tests {
         let mut treasury = test_scenario::take_shared<VaultTreasury>(&scenario);
         
         {
-            let underwriter_cap = test_scenario::take_from_sender<UnderwriterCap>(&scenario);
             let pegged_coins = test_scenario::take_from_sender<Coin<PEGGED>>(&scenario);
             let underlying_coins = test_scenario::take_from_sender<Coin<UNDERLYING>>(&scenario);
             
@@ -72,7 +71,6 @@ module depeg_swap::depeg_swap_tests {
 
             registry::create_vault_collection<PEGGED, UNDERLYING>(
                 &mut vault_registry,
-                &underwriter_cap,
                 &mut treasury,
                 pegged_coins,
                 underlying_coins,
@@ -89,7 +87,6 @@ module depeg_swap::depeg_swap_tests {
             assert_eq(ds_coins_value, expected_ds_minted);
 
             transfer::public_transfer(ds_coins, ADMIN);
-            transfer::public_transfer(underwriter_cap, ADMIN);
         };
         
         test_scenario::return_shared(vault_registry);
@@ -119,7 +116,6 @@ module depeg_swap::depeg_swap_tests {
         let collection_id: ID;
         let vault_id: ID;
         {
-            let underwriter_cap = test_scenario::take_from_sender<UnderwriterCap>(&scenario);
             let pegged_coins = test_scenario::take_from_sender<Coin<PEGGED>>(&scenario);
             let underlying_coins = test_scenario::take_from_sender<Coin<UNDERLYING>>(&scenario);
             
@@ -128,7 +124,6 @@ module depeg_swap::depeg_swap_tests {
 
             vault_id = registry::create_vault_collection<PEGGED, UNDERLYING>(
                 &mut vault_registry,
-                &underwriter_cap,
                 &mut treasury,
                 pegged_coins,
                 underlying_coins,
@@ -144,7 +139,6 @@ module depeg_swap::depeg_swap_tests {
 
             let ds_coins = test_scenario::take_from_sender<Coin<VAULT>>(&scenario);
             transfer::public_transfer(ds_coins, USER);
-            transfer::public_transfer(underwriter_cap, ADMIN);
         };
    
         
@@ -200,7 +194,6 @@ module depeg_swap::depeg_swap_tests {
         let collection_id: ID;
         let vault_id: ID;
         {
-            let underwriter_cap = test_scenario::take_from_sender<UnderwriterCap>(&scenario);
             let pegged_coins = test_scenario::take_from_sender<Coin<PEGGED>>(&scenario);
             let underlying_coins = test_scenario::take_from_sender<Coin<UNDERLYING>>(&scenario);
             
@@ -209,7 +202,6 @@ module depeg_swap::depeg_swap_tests {
 
             vault_id =registry::create_vault_collection<PEGGED, UNDERLYING>(
                 &mut vault_registry,
-                &underwriter_cap,
                 &mut treasury,
                 pegged_coins,
                 underlying_coins,
@@ -220,8 +212,6 @@ module depeg_swap::depeg_swap_tests {
 
             let collections = registry::get_collections(&vault_registry);
             collection_id = *vector::borrow(collections, 0);
-
-            transfer::public_transfer(underwriter_cap, ADMIN);
         };
         
         test_scenario::return_shared(vault_registry);

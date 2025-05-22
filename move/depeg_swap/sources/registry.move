@@ -2,7 +2,7 @@ module depeg_swap::registry {
     use sui::object_table::{Self, ObjectTable};
     use sui::clock::{Clock};
     use sui::coin::Coin;
-    use depeg_swap::vault::{Self, Vault, UnderwriterCap, VaultTreasury};
+    use depeg_swap::vault::{Self, Vault, VaultTreasury};
 
     // Registry witness for initialization
     public struct REGISTRY has drop {}
@@ -14,7 +14,7 @@ module depeg_swap::registry {
     }
 
     // A collection for vaults of a specific coin type pair
-    public struct VaultCollection<phantom P: store, phantom U: store> has key, store {
+    public struct VaultCollection<phantom P, phantom U> has key, store {
         id: UID,
         table: ObjectTable<ID, Vault<P, U>>,
     }
@@ -29,9 +29,8 @@ module depeg_swap::registry {
 
     // Create a new vault collection for a specific coin type pair
     #[allow(lint(self_transfer))]
-    public fun create_vault_collection<P: store, U: store>(
+    public fun create_vault_collection<P, U>(
         registry: &mut VaultRegistry,
-        cap: &UnderwriterCap,
         treasury: &mut VaultTreasury,
         pegged: Coin<P>,
         underlying: Coin<U>,
@@ -48,8 +47,7 @@ module depeg_swap::registry {
         vector::push_back(&mut registry.collections, collection_id);
 
         // Create the initial vault
-        let (ds_coins, vault) = vault::create_vault(
-            cap,
+        let (ds_coins, vault, underwriter_cap) = vault::create_vault(
             treasury,
             pegged,
             underlying,
@@ -63,6 +61,7 @@ module depeg_swap::registry {
 
         // Transfer DS coins to sender
         transfer::public_transfer(ds_coins, tx_context::sender(ctx));
+        transfer::public_transfer(underwriter_cap, tx_context::sender(ctx));
         
         // Share the collection
         transfer::share_object(collection);

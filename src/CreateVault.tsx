@@ -4,8 +4,8 @@ import { useSignAndExecuteTransaction, useSuiClient, useSuiClientQuery, useCurre
 import { useNetworkVariable } from "./networkConfig";
 import ClipLoader from "react-spinners/ClipLoader";
 import { useState, ChangeEvent, useMemo } from "react";
-import { TESTNET_VAULT_REGISTRY_ID, TESTNET_VAULT_TREASURY_ID, TESTNET_UNDERWRITER_CAP } from "./constants";
-import { type CoinStruct, type CoinMetadata } from "@mysten/sui/client";
+import { TESTNET_VAULT_REGISTRY_ID, TESTNET_VAULT_TREASURY_ID } from "./constants";
+import { type CoinStruct } from "@mysten/sui/client";
 
 interface CoinOption {
   id: string;
@@ -122,15 +122,6 @@ export function CreateVault({
     }
   );
 
-  // Query for the UnderwriterCap directly
-  const { data: underwriterCapData, isPending: isCapPending, error: capError } = useSuiClientQuery(
-    'getObject',
-    {
-      id: TESTNET_UNDERWRITER_CAP,
-      options: { showContent: true }
-    }
-  );
-
   // System Clock object ID (this is a constant in Sui)
   const CLOCK_ID = "0x0000000000000000000000000000000000000000000000000000000000000006";
 
@@ -140,15 +131,15 @@ export function CreateVault({
       return;
     }
 
-    if (!TESTNET_VAULT_REGISTRY_ID || !TESTNET_VAULT_TREASURY_ID || !TESTNET_UNDERWRITER_CAP || !selectedPeggedCoin || !selectedUnderlyingCoin) {
+    if (!TESTNET_VAULT_REGISTRY_ID || !TESTNET_VAULT_TREASURY_ID || !selectedPeggedCoin || !selectedUnderlyingCoin) {
       console.error("Missing required object IDs or coin selections");
       return;
     }
 
     // Debug: Log object details
     try {
-      const [registry, treasury, cap] = await suiClient.multiGetObjects({
-        ids: [TESTNET_VAULT_REGISTRY_ID, TESTNET_VAULT_TREASURY_ID, TESTNET_UNDERWRITER_CAP],
+      const [registry, treasury] = await suiClient.multiGetObjects({
+        ids: [TESTNET_VAULT_REGISTRY_ID, TESTNET_VAULT_TREASURY_ID],
         options: { showOwner: true, showContent: true, showType: true }
       });
 
@@ -167,30 +158,8 @@ export function CreateVault({
           version: treasury.data?.version,
           digest: treasury.data?.digest
         },
-        cap: {
-          id: cap.data?.objectId,
-          owner: cap.data?.owner,
-          type: cap.data?.type,
-          version: cap.data?.version,
-          digest: cap.data?.digest
-        },
         currentAddress: currentAccount.address
       });
-
-      // Verify cap ownership
-      const capOwner = cap.data?.owner as { AddressOwner: string };
-      if (!capOwner || !capOwner.AddressOwner) {
-        console.error('UnderwriterCap owner not found');
-        return;
-      }
-
-      if (capOwner.AddressOwner !== currentAccount.address) {
-        console.error(`UnderwriterCap ownership mismatch:
-          Expected: ${currentAccount.address}
-          Actual: ${capOwner.AddressOwner}
-        `);
-        return;
-      }
 
       // Verify registry and treasury are shared
       const registryOwner = registry.data?.owner as { Shared?: { initial_shared_version: number } };
@@ -214,11 +183,6 @@ export function CreateVault({
 
       if (!treasury.data?.type?.includes('::vault::VaultTreasury')) {
         console.error('Invalid Treasury type:', treasury.data?.type);
-        return;
-      }
-
-      if (!cap.data?.type?.includes('::vault::UnderwriterCap')) {
-        console.error('Invalid UnderwriterCap type:', cap.data?.type);
         return;
       }
 
@@ -267,7 +231,6 @@ export function CreateVault({
       packageId: depegSwapPackageId,
       registryId: TESTNET_VAULT_REGISTRY_ID,
       treasuryId: TESTNET_VAULT_TREASURY_ID,
-      underwriterCapId: TESTNET_UNDERWRITER_CAP,
       peggedCoin: {
         id: selectedPeggedCoin.id,
         type: selectedPeggedCoin.type,
@@ -310,7 +273,6 @@ export function CreateVault({
       ],
       arguments: [
         tx.object(TESTNET_VAULT_REGISTRY_ID),
-        tx.object(TESTNET_UNDERWRITER_CAP),
         tx.object(TESTNET_VAULT_TREASURY_ID),
         splitPeggedCoin,
         splitUnderlyingCoin,
@@ -370,9 +332,9 @@ export function CreateVault({
     );
   }
 
-  const isLoading = isRegistryPending || isTreasuryPending || isCapPending || isCoinsLoading;
-  const errors = [coinsError, registryError, treasuryError, capError].filter(Boolean);
-  const isReady = registryData && treasuryData && underwriterCapData && userCoins && coinOptions.length > 0;
+  const isLoading = isRegistryPending || isTreasuryPending || isCoinsLoading;
+  const errors = [coinsError, registryError, treasuryError].filter(Boolean);
+  const isReady = registryData && treasuryData && userCoins && coinOptions.length > 0;
 
 
   if (errors.length > 0) {
@@ -398,14 +360,12 @@ export function CreateVault({
             Missing required objects. Make sure:
             {!registryData && <li>The VaultRegistry object is not found</li>}
             {!treasuryData && <li>The VaultTreasury object is not found</li>}
-            {!underwriterCapData && <li>The UnderwriterCap is not found</li>}
           </Text>
         ) : (
           <>
             <Text size="2" color="gray">Found required objects:</Text>
             <Text size="2">Registry: {TESTNET_VAULT_REGISTRY_ID}</Text>
             <Text size="2">Treasury: {TESTNET_VAULT_TREASURY_ID}</Text>
-            <Text size="2">UnderwriterCap: {TESTNET_UNDERWRITER_CAP}</Text>
           </>
         )}
         
