@@ -9,18 +9,7 @@ import { Label } from "@/components/ui/label"
 import { ArrowLeft, Info, Send } from "lucide-react"
 import { useState, type ChangeEvent, useCallback } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import {
-  ConnectButton,
-  SuiClientProvider,
-  WalletProvider,
-  useCurrentAccount,
-  useSuiClientQuery,
-  useSignAndExecuteTransaction,
-  useSuiClient,
-} from "@mysten/dapp-kit"
-import { Theme } from "@radix-ui/themes"
-import { networkConfig } from "../src/networkConfig"
+import { useCurrentAccount, useSuiClientQuery, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit"
 import { Transaction } from "@mysten/sui/transactions"
 import { useNetworkVariable } from "../src/networkConfig"
 import { Toaster } from "react-hot-toast"
@@ -28,25 +17,9 @@ import toast from "react-hot-toast"
 import VaultList from "@/components/vault-list"
 import CreateVault from "@/components/create-vault"
 import { ClipLoader } from "react-spinners"
+import ConnectButtonWrapper from "@/components/connect-button-wrapper"
 
-const queryClient = new QueryClient()
-
-export default function HedgePageMain() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <SuiClientProvider networks={networkConfig} defaultNetwork="testnet">
-        <WalletProvider autoConnect>
-          <Theme appearance="dark">
-            <Toaster position="top-right" />
-            <HedgePage />
-          </Theme>
-        </WalletProvider>
-      </SuiClientProvider>
-    </QueryClientProvider>
-  )
-}
-
-function HedgePage() {
+export default function HedgePage() {
   const currentAccount = useCurrentAccount()
   const depegSwapPackageId = useNetworkVariable("depegSwapPackageId")
   const suiClient = useSuiClient()
@@ -197,6 +170,7 @@ function HedgePage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
+      <Toaster position="top-right" />
       <div className="container px-4 py-8 mx-auto">
         <div className="flex justify-between items-center mb-8">
           <Link href="/" className="inline-flex items-center text-gray-400 hover:text-white">
@@ -204,7 +178,7 @@ function HedgePage() {
             Back to Home
           </Link>
 
-          <ConnectButton />
+          <ConnectButtonWrapper />
         </div>
 
         <div className="max-w-4xl mx-auto">
