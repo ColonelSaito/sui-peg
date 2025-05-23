@@ -574,6 +574,7 @@ export default function VaultList() {
                   )}
 
                   <div className="space-y-3">
+                    {/* Conditional rendering based on vault status */}
                     {!isExpired && hasRequiredTokens && (
                       <>
                         <Input
@@ -590,21 +591,32 @@ export default function VaultList() {
                         />
                         <Button
                           onClick={() => handleRedeemDepegSwap(vault)}
-                          disabled={isTransactionPending || !redeemInput.amount}
+                          disabled={
+                            isTransactionPending || !redeemInput.amount || redeemInput.vaultId !== vault.data?.objectId
+                          }
                           className="w-full bg-blue-600 hover:bg-blue-700"
                         >
-                          {isTransactionPending ? <ClipLoader size={16} color="#ffffff" /> : "Redeem Depeg Swap"}
+                          {isTransactionPending ? (
+                            <ClipLoader size={16} color="#ffffff" className="mr-2" />
+                          ) : (
+                            "Redeem Depeg Swap"
+                          )}
                         </Button>
                       </>
                     )}
 
-                    {isExpired && underwriterCaps?.data && underwriterCaps.data.length > 0 && (
+                    {/* Always show the Redeem as Underwriter button if user has UnderwriterCap */}
+                    {underwriterCaps?.data && underwriterCaps.data.length > 0 && (
                       <Button
                         onClick={() => handleRedeemUnderlying(vault)}
                         disabled={isTransactionPending}
                         className="w-full bg-red-600 hover:bg-red-700"
                       >
-                        {isTransactionPending ? <ClipLoader size={16} color="#ffffff" /> : "Redeem as Underwriter"}
+                        {isTransactionPending ? (
+                          <ClipLoader size={16} color="#ffffff" className="mr-2" />
+                        ) : (
+                          "Redeem as Underwriter"
+                        )}
                       </Button>
                     )}
                   </div>
