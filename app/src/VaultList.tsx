@@ -445,7 +445,7 @@ export function VaultList() {
               <div>
                 <div>Successfully redeemed underlying coins!</div>
                 <a
-                  href={`https://suivision.xyz/txblock/${result.digest}?network=testnet`}
+                  href={`https://suiscan.xyz/testnet/tx/${result.digest}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ color: "#0066cc", textDecoration: "underline" }}

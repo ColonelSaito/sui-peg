@@ -1,77 +1,88 @@
-"use client"
+"use client";
 
-import { useMemo, useState, type ChangeEvent, useCallback } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { ClipLoader } from "react-spinners"
-import toast from "react-hot-toast"
-import { Transaction } from "@mysten/sui/transactions"
-import { useCurrentAccount, useSuiClientQuery, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit"
-import { TESTNET_VAULT_REGISTRY_ID, TESTNET_VAULT_TREASURY_ID } from "@/app/src/constants"
-import { useNetworkVariable } from "@/app/src/networkConfig"
-import type { SuiObjectResponse, CoinStruct } from "@mysten/sui/client"
-import { useQueryClient } from "@tanstack/react-query"
+import { useMemo, useState, type ChangeEvent, useCallback } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ClipLoader } from "react-spinners";
+import toast from "react-hot-toast";
+import { Transaction } from "@mysten/sui/transactions";
+import {
+  useCurrentAccount,
+  useSuiClientQuery,
+  useSignAndExecuteTransaction,
+  useSuiClient,
+} from "@mysten/dapp-kit";
+import {
+  TESTNET_VAULT_REGISTRY_ID,
+  TESTNET_VAULT_TREASURY_ID,
+} from "@/app/src/constants";
+import { useNetworkVariable } from "@/app/src/networkConfig";
+import type { SuiObjectResponse, CoinStruct } from "@mysten/sui/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 function formatBalance(balance: string | number, decimals = 9): string {
-  const value = BigInt(balance)
-  const divisor = BigInt(10 ** decimals)
-  const integerPart = value / divisor
-  const fractionalPart = value % divisor
-  const paddedFractional = fractionalPart.toString().padStart(decimals, "0")
-  return `${integerPart}.${paddedFractional}`
+  const value = BigInt(balance);
+  const divisor = BigInt(10 ** decimals);
+  const integerPart = value / divisor;
+  const fractionalPart = value % divisor;
+  const paddedFractional = fractionalPart.toString().padStart(decimals, "0");
+  return `${integerPart}.${paddedFractional}`;
 }
 
 function parseInputAmount(amount: string, decimals: number): bigint {
   // Remove any commas
-  amount = amount.replace(/,/g, "")
+  amount = amount.replace(/,/g, "");
 
   // Split on decimal point
-  const parts = amount.split(".")
-  const integerPart = parts[0]
-  const fractionalPart = parts[1] || ""
+  const parts = amount.split(".");
+  const integerPart = parts[0];
+  const fractionalPart = parts[1] || "";
 
   // Pad or truncate fractional part to match decimals
-  const normalizedFractional = fractionalPart.padEnd(decimals, "0").slice(0, decimals)
+  const normalizedFractional = fractionalPart
+    .padEnd(decimals, "0")
+    .slice(0, decimals);
 
   // Combine integer and fractional parts
-  const fullValue = `${integerPart}${normalizedFractional}`
+  const fullValue = `${integerPart}${normalizedFractional}`;
 
   // Convert to BigInt, removing any leading zeros
-  return BigInt(fullValue.replace(/^0+/, "") || "0")
+  return BigInt(fullValue.replace(/^0+/, "") || "0");
 }
 
 interface RedeemInput {
-  vaultId: string
-  amount: string
+  vaultId: string;
+  amount: string;
 }
 
 // Helper function to truncate long text
 function truncateText(text: string, maxLength = 50): string {
-  if (text.length <= maxLength) return text
-  return text.substring(0, maxLength) + "..."
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength) + "...";
 }
 
 export default function VaultList() {
-  const currentAccount = useCurrentAccount()
-  const depegSwapPackageId = useNetworkVariable("depegSwapPackageId")
-  const { mutate: signAndExecute, isPending: isTransactionPending } = useSignAndExecuteTransaction()
-  const queryClient = useQueryClient()
-  const suiClient = useSuiClient()
+  const currentAccount = useCurrentAccount();
+  const depegSwapPackageId = useNetworkVariable("depegSwapPackageId");
+  const { mutate: signAndExecute, isPending: isTransactionPending } =
+    useSignAndExecuteTransaction();
+  const queryClient = useQueryClient();
+  const suiClient = useSuiClient();
 
   // Add state for redeem input
   const [redeemInput, setRedeemInput] = useState<RedeemInput>({
     vaultId: "",
     amount: "",
-  })
+  });
 
   // Add state for separate loading states
   const [loadingStates, setLoadingStates] = useState<{
     [vaultId: string]: {
-      redeemDepegSwap: boolean
-      redeemUnderwriter: boolean
-    }
-  }>({})
+      redeemDepegSwap: boolean;
+      redeemUnderwriter: boolean;
+    };
+  }>({});
 
   // Query for UnderwriterCap objects owned by the current user
   const { data: underwriterCaps } = useSuiClientQuery(
@@ -93,8 +104,8 @@ export default function VaultList() {
     },
     {
       enabled: !!currentAccount?.address,
-    },
-  )
+    }
+  );
 
   // Query for user's coins
   const { data: userCoins } = useSuiClientQuery(
@@ -104,21 +115,25 @@ export default function VaultList() {
     },
     {
       enabled: !!currentAccount?.address,
-    },
-  )
+    }
+  );
 
   // Get DS tokens and pegged tokens owned by the user
   const userTokens = useMemo(() => {
-    if (!userCoins?.data || !depegSwapPackageId) return { dsTokens: [], peggedTokens: [] }
+    if (!userCoins?.data || !depegSwapPackageId)
+      return { dsTokens: [], peggedTokens: [] };
 
     const dsTokens = userCoins.data.filter(
-      (coin: CoinStruct) => coin.coinType === `${depegSwapPackageId}::vault::VAULT`,
-    )
+      (coin: CoinStruct) =>
+        coin.coinType === `${depegSwapPackageId}::vault::VAULT`
+    );
 
-    const peggedTokens = userCoins.data.filter((coin: CoinStruct) => coin.coinType.includes("::pegged_coin::"))
+    const peggedTokens = userCoins.data.filter((coin: CoinStruct) =>
+      coin.coinType.includes("::pegged_coin::")
+    );
 
-    return { dsTokens, peggedTokens }
-  }, [userCoins?.data, depegSwapPackageId])
+    return { dsTokens, peggedTokens };
+  }, [userCoins?.data, depegSwapPackageId]);
 
   // First, query the registry object to get its content
   const {
@@ -132,12 +147,12 @@ export default function VaultList() {
       showType: true,
       showOwner: true,
     },
-  })
+  });
 
   // Get vault IDs directly from the registry's vaults vector
-  const registryContent = registryData?.data?.content as any
-  const vaultIds = registryContent?.fields?.vaults || []
-  const shouldFetchVaults = vaultIds.length > 0
+  const registryContent = registryData?.data?.content as any;
+  const vaultIds = registryContent?.fields?.vaults || [];
+  const shouldFetchVaults = vaultIds.length > 0;
 
   // Query the actual vault objects
   const {
@@ -156,8 +171,8 @@ export default function VaultList() {
     },
     {
       enabled: shouldFetchVaults,
-    },
-  )
+    }
+  );
 
   // The useMemo approach with hooks inside won't work either
   // Let's simplify and just focus on properly invalidating and refetching the specific vault
@@ -171,18 +186,18 @@ export default function VaultList() {
         // Refetch user coins
         queryClient.invalidateQueries({
           queryKey: ["getAllCoins", currentAccount.address],
-        })
+        });
 
         // Refetch underwriter caps
         queryClient.invalidateQueries({
           queryKey: ["getOwnedObjects", currentAccount.address],
-        })
+        });
       }
 
       // Refetch registry
       queryClient.invalidateQueries({
         queryKey: ["getObject", TESTNET_VAULT_REGISTRY_ID],
-      })
+      });
 
       // If a specific vault ID is provided, refetch that vault object directly
       if (vaultId) {
@@ -198,103 +213,110 @@ export default function VaultList() {
                 showOwner: true,
               },
             }),
-        })
+        });
       }
 
       // Refetch all vault objects
       queryClient.invalidateQueries({
         queryKey: ["multiGetObjects"],
-      })
+      });
       queryClient.refetchQueries({
         queryKey: ["multiGetObjects"],
-      })
+      });
     },
-    [queryClient, currentAccount?.address, suiClient],
-  )
+    [queryClient, currentAccount?.address, suiClient]
+  );
 
-  const isLoading = isRegistryPending || (shouldFetchVaults && isVaultsPending)
-  const error = registryError || vaultsError
+  const isLoading = isRegistryPending || (shouldFetchVaults && isVaultsPending);
+  const error = registryError || vaultsError;
 
   const handleRedeemDepegSwap = async (vault: SuiObjectResponse) => {
-    const vaultId = vault.data?.objectId
-    if (!vaultId) return
+    const vaultId = vault.data?.objectId;
+    if (!vaultId) return;
 
     // Set loading state for this specific vault's depeg swap action
     setLoadingStates((prev) => ({
       ...prev,
       [vaultId]: { ...prev[vaultId], redeemDepegSwap: true },
-    }))
+    }));
 
     try {
       if (!currentAccount?.address) {
-        toast.error("Please connect your wallet first!")
-        return
+        toast.error("Please connect your wallet first!");
+        return;
       }
 
       if (!vault.data?.objectId || !vault.data?.content) {
-        toast.error("Invalid vault data")
-        return
+        toast.error("Invalid vault data");
+        return;
       }
 
-      const vaultContent = vault.data.content as any
+      const vaultContent = vault.data.content as any;
       if (!vaultContent?.fields) {
-        toast.error("Invalid vault data!")
-        return
+        toast.error("Invalid vault data!");
+        return;
       }
 
-      const vaultExpiry = Number(vaultContent.fields.expiry)
+      const vaultExpiry = Number(vaultContent.fields.expiry);
       if (vaultExpiry <= Date.now()) {
-        toast.error("Vault has expired!")
-        return
+        toast.error("Vault has expired!");
+        return;
       }
 
       // Check if user has DS tokens
       if (!userTokens.dsTokens.length) {
-        toast.error("You don't have any Depeg Swap tokens!")
-        return
+        toast.error("You don't have any Depeg Swap tokens!");
+        return;
       }
 
       // Check if user has pegged tokens
       if (!userTokens.peggedTokens.length) {
-        toast.error("You don't have any pegged tokens!")
-        return
+        toast.error("You don't have any pegged tokens!");
+        return;
       }
 
       // Parse the DS amount to redeem with decimals
-      const DS_DECIMALS = 9 // Default Sui token decimals
-      const PEGGED_DECIMALS = 9 // Default Sui token decimals
+      const DS_DECIMALS = 9; // Default Sui token decimals
+      const PEGGED_DECIMALS = 9; // Default Sui token decimals
 
       // Convert display amount to on-chain amount
-      const dsAmountToRedeem = parseInputAmount(redeemInput.amount, DS_DECIMALS)
+      const dsAmountToRedeem = parseInputAmount(
+        redeemInput.amount,
+        DS_DECIMALS
+      );
       if (dsAmountToRedeem <= 0n) {
-        toast.error("Please enter a valid amount of DS tokens to redeem")
-        return
+        toast.error("Please enter a valid amount of DS tokens to redeem");
+        return;
       }
 
       // Check if amount is divisible by 100 (DS:Pegged ratio)
       if (dsAmountToRedeem % 100n !== 0n) {
-        toast.error("DS token amount must be divisible by 100")
-        return
+        toast.error("DS token amount must be divisible by 100");
+        return;
       }
 
       // Calculate required pegged token amount (with proper decimals)
-      const requiredPeggedAmount = dsAmountToRedeem / 100n
+      const requiredPeggedAmount = dsAmountToRedeem / 100n;
 
       // Extract pegged and underlying coin types from the vault fields
-      const peggedType = vaultContent.fields.pegged_vault.type.match(/Coin<(.+)>/)?.[1]
-      const underlyingType = vaultContent.fields.underlying_vault.type.match(/Coin<(.+)>/)?.[1]
+      const peggedType =
+        vaultContent.fields.pegged_vault.type.match(/Coin<(.+)>/)?.[1];
+      const underlyingType =
+        vaultContent.fields.underlying_vault.type.match(/Coin<(.+)>/)?.[1];
 
       if (!peggedType || !underlyingType) {
-        toast.error("Could not extract coin types from vault!")
-        return
+        toast.error("Could not extract coin types from vault!");
+        return;
       }
 
       // Find matching pegged token
-      const matchingPeggedToken = userTokens.peggedTokens.find((token) => token.coinType === peggedType)
+      const matchingPeggedToken = userTokens.peggedTokens.find(
+        (token) => token.coinType === peggedType
+      );
 
       if (!matchingPeggedToken) {
-        toast.error(`You don't have the required pegged token: ${peggedType}`)
-        return
+        toast.error(`You don't have the required pegged token: ${peggedType}`);
+        return;
       }
 
       // Check if user has enough pegged tokens (comparing with proper decimals)
@@ -302,33 +324,36 @@ export default function VaultList() {
         toast.error(
           `Insufficient pegged tokens. Need ${formatBalance(
             requiredPeggedAmount.toString(),
-            PEGGED_DECIMALS,
-          )} but you have ${formatBalance(matchingPeggedToken.balance, PEGGED_DECIMALS)}`,
-        )
-        return
+            PEGGED_DECIMALS
+          )} but you have ${formatBalance(matchingPeggedToken.balance, PEGGED_DECIMALS)}`
+        );
+        return;
       }
 
       // Get DS token and check balance
-      const dsToken = userTokens.dsTokens[0] // Using first DS token for simplicity
+      const dsToken = userTokens.dsTokens[0]; // Using first DS token for simplicity
       if (BigInt(dsToken.balance) < dsAmountToRedeem) {
         toast.error(
           `Insufficient DS tokens. Need ${formatBalance(
             dsAmountToRedeem.toString(),
-            DS_DECIMALS,
-          )} but you have ${formatBalance(dsToken.balance, DS_DECIMALS)}`,
-        )
-        return
+            DS_DECIMALS
+          )} but you have ${formatBalance(dsToken.balance, DS_DECIMALS)}`
+        );
+        return;
       }
 
-      const tx = new Transaction()
+      const tx = new Transaction();
 
       // Split DS token to the exact amount needed (with decimals)
-      const [splitDsToken] = tx.splitCoins(tx.object(dsToken.coinObjectId), [tx.pure.u64(dsAmountToRedeem.toString())])
+      const [splitDsToken] = tx.splitCoins(tx.object(dsToken.coinObjectId), [
+        tx.pure.u64(dsAmountToRedeem.toString()),
+      ]);
 
       // Split pegged token to 1/100 of the DS amount (with decimals)
-      const [splitPeggedToken] = tx.splitCoins(tx.object(matchingPeggedToken.coinObjectId), [
-        tx.pure.u64(requiredPeggedAmount.toString()),
-      ])
+      const [splitPeggedToken] = tx.splitCoins(
+        tx.object(matchingPeggedToken.coinObjectId),
+        [tx.pure.u64(requiredPeggedAmount.toString())]
+      );
 
       console.log("Transaction input", {
         vaultId: vault.data.objectId,
@@ -336,7 +361,7 @@ export default function VaultList() {
         clockId: "0x6",
         splitDsToken,
         splitPeggedToken,
-      })
+      });
 
       const [underlying_coin] = tx.moveCall({
         target: `${depegSwapPackageId}::vault::redeem_depeg_swap`,
@@ -348,13 +373,16 @@ export default function VaultList() {
           splitPeggedToken,
           tx.object("0x6"),
         ],
-      })
+      });
 
       console.log("Transaction output", {
         underlying_coin,
-      })
+      });
 
-      tx.transferObjects([underlying_coin, splitPeggedToken, splitDsToken], currentAccount.address)
+      tx.transferObjects(
+        [underlying_coin, splitPeggedToken, splitDsToken],
+        currentAccount.address
+      );
 
       signAndExecute(
         {
@@ -362,12 +390,12 @@ export default function VaultList() {
         },
         {
           onSuccess: (result) => {
-            console.log("Successfully redeemed Depeg Swap tokens:", result)
+            console.log("Successfully redeemed Depeg Swap tokens:", result);
             // Clear the input after successful redemption
-            setRedeemInput({ vaultId: "", amount: "" })
+            setRedeemInput({ vaultId: "", amount: "" });
 
             // Refresh data by refetching queries
-            refreshData(vault.data?.objectId)
+            refreshData(vault.data?.objectId);
 
             toast.success(
               <div>
@@ -388,108 +416,122 @@ export default function VaultList() {
                   background: "#333",
                   color: "#fff",
                 },
-              },
-            )
+              }
+            );
           },
           onError: (error) => {
-            console.error("Failed to redeem Depeg Swap tokens:", error)
-            toast.error(`Failed to redeem: ${error instanceof Error ? error.message : "Unknown error"}`, {
-              duration: 5000,
-              style: {
-                borderRadius: "10px",
-                background: "#333",
-                color: "#fff",
-              },
-            })
+            console.error("Failed to redeem Depeg Swap tokens:", error);
+            toast.error(
+              `Failed to redeem: ${error instanceof Error ? error.message : "Unknown error"}`,
+              {
+                duration: 5000,
+                style: {
+                  borderRadius: "10px",
+                  background: "#333",
+                  color: "#fff",
+                },
+              }
+            );
           },
-        },
-      )
+        }
+      );
     } catch (error) {
-      console.error("Error executing transaction:", error)
-      toast.error(`Error executing transaction: ${error instanceof Error ? error.message : "Unknown error"}`, {
-        duration: 5000,
-        style: {
-          borderRadius: "10px",
-          background: "#333",
-          color: "#fff",
-        },
-      })
+      console.error("Error executing transaction:", error);
+      toast.error(
+        `Error executing transaction: ${error instanceof Error ? error.message : "Unknown error"}`,
+        {
+          duration: 5000,
+          style: {
+            borderRadius: "10px",
+            background: "#333",
+            color: "#fff",
+          },
+        }
+      );
     } finally {
       // Clear loading state
       setLoadingStates((prev) => ({
         ...prev,
         [vaultId]: { ...prev[vaultId], redeemDepegSwap: false },
-      }))
+      }));
     }
-  }
+  };
 
   const handleRedeemUnderlying = async (vault: SuiObjectResponse) => {
-    const vaultId = vault.data?.objectId
-    if (!vaultId) return
+    const vaultId = vault.data?.objectId;
+    if (!vaultId) return;
 
     // Set loading state for this specific vault's underwriter action
     setLoadingStates((prev) => ({
       ...prev,
       [vaultId]: { ...prev[vaultId], redeemUnderwriter: true },
-    }))
+    }));
 
     try {
       if (!underwriterCaps?.data?.[0]?.data?.objectId) {
-        toast.error("You don't have the UnderwriterCap required to redeem underlying coins!")
-        return
+        toast.error(
+          "You don't have the UnderwriterCap required to redeem underlying coins!"
+        );
+        return;
       }
 
       if (!currentAccount?.address) {
-        toast.error("You don't have an account!")
-        return
+        toast.error("You don't have an account!");
+        return;
       }
 
       if (!vault.data?.type || !vault.data?.objectId) {
-        toast.error("Invalid vault data!")
-        return
+        toast.error("Invalid vault data!");
+        return;
       }
 
       const vaultContent = vault.data?.content as unknown as {
-        dataType: "moveObject"
+        dataType: "moveObject";
         fields: {
           pegged_vault: {
-            type: string
-          }
+            type: string;
+          };
           underlying_vault: {
-            type: string
-          }
-        }
-      }
+            type: string;
+          };
+        };
+      };
 
       if (!vaultContent?.fields) {
-        toast.error("Invalid vault data!")
-        return
+        toast.error("Invalid vault data!");
+        return;
       }
 
       // Extract pegged and underlying coin types from the vault fields
-      const peggedType = vaultContent.fields.pegged_vault.type.match(/Coin<(.+)>/)?.[1]
-      const underlyingType = vaultContent.fields.underlying_vault.type.match(/Coin<(.+)>/)?.[1]
+      const peggedType =
+        vaultContent.fields.pegged_vault.type.match(/Coin<(.+)>/)?.[1];
+      const underlyingType =
+        vaultContent.fields.underlying_vault.type.match(/Coin<(.+)>/)?.[1];
 
       if (!peggedType || !underlyingType) {
-        toast.error("Could not extract coin types from vault!")
-        return
+        toast.error("Could not extract coin types from vault!");
+        return;
       }
 
       console.log("Transaction input", {
         vaultId: vault.data.objectId,
         underwriterCapId: underwriterCaps.data[0].data.objectId,
         clockId: "0x6",
-      })
+      });
 
-      const tx = new Transaction()
+      const tx = new Transaction();
 
       const [underlyingCoin, peggedCoin] = tx.moveCall({
         target: `${depegSwapPackageId}::vault::redeem_underlying`,
         typeArguments: [peggedType, underlyingType],
-        arguments: [tx.object(vault.data.objectId), tx.object(underwriterCaps.data[0].data.objectId), tx.object("0x6")],
-      })
+        arguments: [
+          tx.object(vault.data.objectId),
+          tx.object(underwriterCaps.data[0].data.objectId),
+          tx.object("0x6"),
+        ],
+      });
 
-      tx.transferObjects([underlyingCoin, peggedCoin], currentAccount.address)
+      tx.transferObjects([underlyingCoin, peggedCoin], currentAccount.address);
 
       signAndExecute(
         {
@@ -497,16 +539,16 @@ export default function VaultList() {
         },
         {
           onSuccess: (result) => {
-            console.log("Successfully redeemed underlying coins:", result)
+            console.log("Successfully redeemed underlying coins:", result);
 
             // Refresh data by refetching queries
-            refreshData(vault.data?.objectId)
+            refreshData(vault.data?.objectId);
 
             toast.success(
               <div>
                 <div>Successfully redeemed underlying coins!</div>
                 <a
-                  href={`https://suivision.xyz/txblock/${result.digest}?network=testnet`}
+                  href={`https://suiscan.xyz/testnet/tx/${result.digest}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ color: "#0066cc", textDecoration: "underline" }}
@@ -521,11 +563,11 @@ export default function VaultList() {
                   background: "#333",
                   color: "#fff",
                 },
-              },
-            )
+              }
+            );
           },
           onError: (error) => {
-            console.error("Failed to redeem underlying coins:", error)
+            console.error("Failed to redeem underlying coins:", error);
             toast.error(
               `Failed to redeem underlying coins: ${error instanceof Error ? error.message : "Unknown error"}`,
               {
@@ -535,40 +577,45 @@ export default function VaultList() {
                   background: "#333",
                   color: "#fff",
                 },
-              },
-            )
+              }
+            );
           },
-        },
-      )
+        }
+      );
     } catch (error) {
-      console.error("Error executing transaction:", error)
-      toast.error(`Error executing transaction: ${error instanceof Error ? error.message : "Unknown error"}`, {
-        duration: 5000,
-        style: {
-          borderRadius: "10px",
-          background: "#333",
-          color: "#fff",
-        },
-      })
+      console.error("Error executing transaction:", error);
+      toast.error(
+        `Error executing transaction: ${error instanceof Error ? error.message : "Unknown error"}`,
+        {
+          duration: 5000,
+          style: {
+            borderRadius: "10px",
+            background: "#333",
+            color: "#fff",
+          },
+        }
+      );
     } finally {
       // Clear loading state
       setLoadingStates((prev) => ({
         ...prev,
         [vaultId]: { ...prev[vaultId], redeemUnderwriter: false },
-      }))
+      }));
     }
-  }
+  };
 
   if (error) {
     return (
       <div className="space-y-6">
         <Card className="bg-red-900/20 border-red-800">
           <CardContent className="p-6">
-            <p className="text-red-400">Error fetching vaults: {error.message}</p>
+            <p className="text-red-400">
+              Error fetching vaults: {error.message}
+            </p>
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   if (isLoading) {
@@ -579,7 +626,7 @@ export default function VaultList() {
           <span>Loading vaults...</span>
         </div>
       </div>
-    )
+    );
   }
 
   if (!vaultIds.length) {
@@ -587,7 +634,7 @@ export default function VaultList() {
       <div className="space-y-6">
         <p>No vaults found. Create one to get started!</p>
       </div>
-    )
+    );
   }
 
   return (
@@ -599,7 +646,9 @@ export default function VaultList() {
           <Card className="bg-gray-900 border-gray-800">
             <CardContent className="p-4">
               <div className="space-y-2">
-                <p className="text-sm">Registry ID: {TESTNET_VAULT_REGISTRY_ID}</p>
+                <p className="text-sm">
+                  Registry ID: {TESTNET_VAULT_REGISTRY_ID}
+                </p>
                 <p className="text-sm">Type: {registryData.data?.type}</p>
               </div>
             </CardContent>
@@ -610,33 +659,40 @@ export default function VaultList() {
           <div className="space-y-3">
             <h4 className="text-lg font-semibold">Vaults</h4>
             {vaultObjectsData.map((vault: SuiObjectResponse) => {
-              const content = vault.data?.content as any
-              const fields = content?.fields || {}
-              const status = Number(fields.expiry) > Date.now() ? "Active" : "Expired"
-              const statusColor = status === "Active" ? "text-green-400" : "text-red-400"
-              const vaultId = vault.data?.objectId || ""
+              const content = vault.data?.content as any;
+              const fields = content?.fields || {};
+              const status =
+                Number(fields.expiry) > Date.now() ? "Active" : "Expired";
+              const statusColor =
+                status === "Active" ? "text-green-400" : "text-red-400";
+              const vaultId = vault.data?.objectId || "";
 
               // Extract coin balances
-              const peggedVault = fields.pegged_vault?.fields
-              const underlyingVault = fields.underlying_vault?.fields
+              const peggedVault = fields.pegged_vault?.fields;
+              const underlyingVault = fields.underlying_vault?.fields;
 
               // Get coin types from the vault fields
               const peggedType =
                 peggedVault?.type
                   ?.match(/Coin<(.+)>/)?.[1]
                   ?.split("::")
-                  .pop() || "Unknown"
+                  .pop() || "Unknown";
               const underlyingType =
                 underlyingVault?.type
                   ?.match(/Coin<(.+)>/)?.[1]
                   ?.split("::")
-                  .pop() || "Unknown"
+                  .pop() || "Unknown";
 
               // Check if user has DS tokens for this vault
-              const hasRequiredTokens = userTokens.dsTokens.length > 0 && userTokens.peggedTokens.length > 0
+              const hasRequiredTokens =
+                userTokens.dsTokens.length > 0 &&
+                userTokens.peggedTokens.length > 0;
 
               // Get loading states for this vault
-              const vaultLoadingStates = loadingStates[vaultId] || { redeemDepegSwap: false, redeemUnderwriter: false }
+              const vaultLoadingStates = loadingStates[vaultId] || {
+                redeemDepegSwap: false,
+                redeemUnderwriter: false,
+              };
 
               return (
                 <Card key={vaultId} className="bg-gray-900 border-gray-800">
@@ -650,19 +706,26 @@ export default function VaultList() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="text-sm space-y-1">
-                      <p className="break-all">Type: {truncateText(vault.data?.type || "", 80)}</p>
+                      <p className="break-all">
+                        Type: {truncateText(vault.data?.type || "", 80)}
+                      </p>
                       <p>Total DS: {formatBalance(fields.total_ds)}</p>
-                      <p>Expiry: {new Date(Number(fields.expiry)).toLocaleString()}</p>
+                      <p>
+                        Expiry:{" "}
+                        {new Date(Number(fields.expiry)).toLocaleString()}
+                      </p>
                     </div>
 
                     <div className="space-y-2">
                       <h5 className="text-sm font-semibold">Vault Contents:</h5>
                       <div className="bg-gray-800/50 p-3 rounded-lg space-y-1 text-sm">
                         <p>
-                          Pegged Coin ({peggedType}): {formatBalance(peggedVault?.balance || "0")}
+                          Pegged Coin ({peggedType}):{" "}
+                          {formatBalance(peggedVault?.balance || "0")}
                         </p>
                         <p>
-                          Underlying Coin ({underlyingType}): {formatBalance(underlyingVault?.balance || "0")}
+                          Underlying Coin ({underlyingType}):{" "}
+                          {formatBalance(underlyingVault?.balance || "0")}
                         </p>
                       </div>
                     </div>
@@ -674,7 +737,11 @@ export default function VaultList() {
                             type="text"
                             placeholder="Amount of DS tokens to redeem (must be divisible by 100)"
                             className="bg-gray-800 border-gray-700"
-                            value={redeemInput.vaultId === vaultId ? redeemInput.amount : ""}
+                            value={
+                              redeemInput.vaultId === vaultId
+                                ? redeemInput.amount
+                                : ""
+                            }
                             onChange={(e: ChangeEvent<HTMLInputElement>) =>
                               setRedeemInput({
                                 vaultId: vaultId,
@@ -684,12 +751,19 @@ export default function VaultList() {
                           />
                           <Button
                             onClick={() => handleRedeemDepegSwap(vault)}
-                            disabled={vaultLoadingStates.redeemDepegSwap || !redeemInput.amount}
+                            disabled={
+                              vaultLoadingStates.redeemDepegSwap ||
+                              !redeemInput.amount
+                            }
                             className="w-full bg-blue-600 hover:bg-blue-700"
                           >
                             {vaultLoadingStates.redeemDepegSwap ? (
                               <div className="flex items-center">
-                                <ClipLoader size={16} color="#ffffff" className="mr-2" />
+                                <ClipLoader
+                                  size={16}
+                                  color="#ffffff"
+                                  className="mr-2"
+                                />
                                 Redeeming Depeg Swap...
                               </div>
                             ) : (
@@ -699,30 +773,35 @@ export default function VaultList() {
                         </>
                       )}
 
-                      {underwriterCaps?.data && underwriterCaps.data.length > 0 && (
-                        <Button
-                          onClick={() => handleRedeemUnderlying(vault)}
-                          disabled={vaultLoadingStates.redeemUnderwriter}
-                          className="w-full bg-red-600 hover:bg-red-700"
-                        >
-                          {vaultLoadingStates.redeemUnderwriter ? (
-                            <div className="flex items-center">
-                              <ClipLoader size={16} color="#ffffff" className="mr-2" />
-                              Redeeming as Underwriter...
-                            </div>
-                          ) : (
-                            "Redeem as Underwriter"
-                          )}
-                        </Button>
-                      )}
+                      {underwriterCaps?.data &&
+                        underwriterCaps.data.length > 0 && (
+                          <Button
+                            onClick={() => handleRedeemUnderlying(vault)}
+                            disabled={vaultLoadingStates.redeemUnderwriter}
+                            className="w-full bg-red-600 hover:bg-red-700"
+                          >
+                            {vaultLoadingStates.redeemUnderwriter ? (
+                              <div className="flex items-center">
+                                <ClipLoader
+                                  size={16}
+                                  color="#ffffff"
+                                  className="mr-2"
+                                />
+                                Redeeming as Underwriter...
+                              </div>
+                            ) : (
+                              "Redeem as Underwriter"
+                            )}
+                          </Button>
+                        )}
                     </div>
                   </CardContent>
                 </Card>
-              )
+              );
             })}
           </div>
         )}
       </div>
     </div>
-  )
+  );
 }
