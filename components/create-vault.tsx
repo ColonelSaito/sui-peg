@@ -1,73 +1,101 @@
-"use client"
+"use client";
 
-import { useState, useMemo, type ChangeEvent, useCallback } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ClipLoader } from "react-spinners"
-import toast from "react-hot-toast"
-import { Transaction } from "@mysten/sui/transactions"
-import { useCurrentAccount, useSuiClientQuery, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit"
-import { TESTNET_VAULT_REGISTRY_ID, TESTNET_VAULT_TREASURY_ID } from "@/app/src/constants"
-import { useNetworkVariable } from "@/app/src/networkConfig"
-import type { CoinStruct } from "@mysten/sui/client"
-import { useQueryClient } from "@tanstack/react-query"
+import { useState, useMemo, type ChangeEvent, useCallback } from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ClipLoader } from "react-spinners";
+import toast from "react-hot-toast";
+import { Transaction } from "@mysten/sui/transactions";
+import {
+  useCurrentAccount,
+  useSuiClientQuery,
+  useSignAndExecuteTransaction,
+  useSuiClient,
+} from "@mysten/dapp-kit";
+import {
+  TESTNET_VAULT_REGISTRY_ID,
+  TESTNET_VAULT_TREASURY_ID,
+} from "@/app/src/constants";
+import { useNetworkVariable } from "@/app/src/networkConfig";
+import type { CoinStruct } from "@mysten/sui/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface CoinOption {
-  id: string
-  balance: string
-  type: string
-  decimals: number
-  symbol: string
-  isPegged: boolean
+  id: string;
+  balance: string;
+  type: string;
+  decimals: number;
+  symbol: string;
+  isPegged: boolean;
 }
 
 function formatBalance(balance: string, decimals: number): string {
-  const value = BigInt(balance)
-  const divisor = BigInt(10 ** decimals)
-  const integerPart = value / divisor
-  const fractionalPart = value % divisor
-  const paddedFractional = fractionalPart.toString().padStart(decimals, "0")
-  return `${integerPart}.${paddedFractional}`
+  const value = BigInt(balance);
+  const divisor = BigInt(10 ** decimals);
+  const integerPart = value / divisor;
+  const fractionalPart = value % divisor;
+  const paddedFractional = fractionalPart.toString().padStart(decimals, "0");
+  return `${integerPart}.${paddedFractional}`;
 }
 
 function parseInputAmount(amount: string, decimals: number): bigint {
   // Remove any commas
-  amount = amount.replace(/,/g, "")
+  amount = amount.replace(/,/g, "");
 
   // Split on decimal point
-  const parts = amount.split(".")
-  const integerPart = parts[0]
-  const fractionalPart = parts[1] || ""
+  const parts = amount.split(".");
+  const integerPart = parts[0];
+  const fractionalPart = parts[1] || "";
 
   // Pad or truncate fractional part to match decimals
-  const normalizedFractional = fractionalPart.padEnd(decimals, "0").slice(0, decimals)
+  const normalizedFractional = fractionalPart
+    .padEnd(decimals, "0")
+    .slice(0, decimals);
 
   // Combine integer and fractional parts
-  const fullValue = `${integerPart}${normalizedFractional}`
+  const fullValue = `${integerPart}${normalizedFractional}`;
 
   // Convert to BigInt, removing any leading zeros
-  return BigInt(fullValue.replace(/^0+/, "") || "0")
+  return BigInt(fullValue.replace(/^0+/, "") || "0");
 }
 
 export default function CreateVault({
   onCreated,
 }: {
-  onCreated: (id: string) => void
+  onCreated: (id: string) => void;
 }) {
-  const depegSwapPackageId = useNetworkVariable("depegSwapPackageId")
-  const suiClient = useSuiClient()
-  const currentAccount = useCurrentAccount()
-  const { mutate: signAndExecute, isSuccess, isPending: isTransactionPending } = useSignAndExecuteTransaction()
-  const queryClient = useQueryClient()
+  const depegSwapPackageId = useNetworkVariable("depegSwapPackageId");
+  const suiClient = useSuiClient();
+  const currentAccount = useCurrentAccount();
+  const {
+    mutate: signAndExecute,
+    isSuccess,
+    isPending: isTransactionPending,
+  } = useSignAndExecuteTransaction();
+  const queryClient = useQueryClient();
 
-  const [selectedPeggedCoin, setSelectedPeggedCoin] = useState<CoinOption | null>(null)
-  const [selectedUnderlyingCoin, setSelectedUnderlyingCoin] = useState<CoinOption | null>(null)
-  const [expiryHours, setExpiryHours] = useState("24") // Default 24 hours
-  const [peggedAmount, setPeggedAmount] = useState("")
-  const [underlyingAmount, setUnderlyingAmount] = useState("")
+  const [selectedPeggedCoin, setSelectedPeggedCoin] =
+    useState<CoinOption | null>(null);
+  const [selectedUnderlyingCoin, setSelectedUnderlyingCoin] =
+    useState<CoinOption | null>(null);
+  const [expiryHours, setExpiryHours] = useState("24"); // Default 24 hours
+  const [peggedAmount, setPeggedAmount] = useState("");
+  const [underlyingAmount, setUnderlyingAmount] = useState("");
 
   // Function to refresh data after transactions
   const refreshData = useCallback(() => {
@@ -76,19 +104,19 @@ export default function CreateVault({
       // Refetch user coins
       queryClient.invalidateQueries({
         queryKey: ["getAllCoins", currentAccount.address],
-      })
+      });
     }
 
     // Refetch registry and vaults
     queryClient.invalidateQueries({
       queryKey: ["getObject", TESTNET_VAULT_REGISTRY_ID],
-    })
+    });
 
     // Refetch vault objects
     queryClient.invalidateQueries({
       queryKey: ["multiGetObjects"],
-    })
-  }, [queryClient, currentAccount?.address])
+    });
+  }, [queryClient, currentAccount?.address]);
 
   // Query for user's coins
   const {
@@ -102,16 +130,16 @@ export default function CreateVault({
     },
     {
       enabled: !!currentAccount?.address,
-    },
-  )
+    }
+  );
 
   // Format coins for dropdown with basic information
   const coinOptions: CoinOption[] = useMemo(() => {
-    if (!userCoins?.data) return []
+    if (!userCoins?.data) return [];
 
     return userCoins.data.map((coin: CoinStruct) => {
-      const symbol = coin.coinType.split("::").pop() || "UNKNOWN"
-      const isPegged = coin.coinType.includes("::pegged_coin::")
+      const symbol = coin.coinType.split("::").pop() || "UNKNOWN";
+      const isPegged = coin.coinType.includes("::pegged_coin::");
       return {
         id: coin.coinObjectId,
         balance: coin.balance,
@@ -119,17 +147,21 @@ export default function CreateVault({
         decimals: 9, // Default to 9 decimals for Sui coins
         symbol: symbol,
         isPegged,
-      }
-    })
-  }, [userCoins?.data])
+      };
+    });
+  }, [userCoins?.data]);
 
   // Separate pegged and underlying coins
-  const peggedCoins = useMemo(() => coinOptions.filter((coin) => coin.type.includes("::pegged_coin::")), [coinOptions])
+  const peggedCoins = useMemo(
+    () => coinOptions.filter((coin) => coin.type.includes("::pegged_coin::")),
+    [coinOptions]
+  );
 
   const underlyingCoins = useMemo(
-    () => coinOptions.filter((coin) => coin.type.includes("::underlying_coin::")),
-    [coinOptions],
-  )
+    () =>
+      coinOptions.filter((coin) => coin.type.includes("::underlying_coin::")),
+    [coinOptions]
+  );
 
   // Query for the VaultRegistry object directly
   const {
@@ -139,7 +171,7 @@ export default function CreateVault({
   } = useSuiClientQuery("getObject", {
     id: TESTNET_VAULT_REGISTRY_ID,
     options: { showContent: true },
-  })
+  });
 
   // Query for the VaultTreasury object directly
   const {
@@ -149,22 +181,28 @@ export default function CreateVault({
   } = useSuiClientQuery("getObject", {
     id: TESTNET_VAULT_TREASURY_ID,
     options: { showContent: true },
-  })
+  });
 
   // System Clock object ID (this is a constant in Sui)
-  const CLOCK_ID = "0x0000000000000000000000000000000000000000000000000000000000000006"
+  const CLOCK_ID =
+    "0x0000000000000000000000000000000000000000000000000000000000000006";
 
   async function createVault() {
     if (!currentAccount?.address) {
-      console.error("No wallet connected")
-      toast.error("Please connect your wallet first!")
-      return
+      console.error("No wallet connected");
+      toast.error("Please connect your wallet first!");
+      return;
     }
 
-    if (!TESTNET_VAULT_REGISTRY_ID || !TESTNET_VAULT_TREASURY_ID || !selectedPeggedCoin || !selectedUnderlyingCoin) {
-      console.error("Missing required object IDs or coin selections")
-      toast.error("Missing required object IDs or coin selections")
-      return
+    if (
+      !TESTNET_VAULT_REGISTRY_ID ||
+      !TESTNET_VAULT_TREASURY_ID ||
+      !selectedPeggedCoin ||
+      !selectedUnderlyingCoin
+    ) {
+      console.error("Missing required object IDs or coin selections");
+      toast.error("Missing required object IDs or coin selections");
+      return;
     }
 
     // Debug: Log object details
@@ -172,7 +210,7 @@ export default function CreateVault({
       const [registry, treasury] = await suiClient.multiGetObjects({
         ids: [TESTNET_VAULT_REGISTRY_ID, TESTNET_VAULT_TREASURY_ID],
         options: { showOwner: true, showContent: true, showType: true },
-      })
+      });
 
       console.log("Detailed Object Info:", {
         registry: {
@@ -190,78 +228,90 @@ export default function CreateVault({
           digest: treasury.data?.digest,
         },
         currentAddress: currentAccount.address,
-      })
+      });
 
       // Verify registry and treasury are shared
-      const registryOwner = registry.data?.owner as { Shared?: { initial_shared_version: number } }
-      const treasuryOwner = treasury.data?.owner as { Shared?: { initial_shared_version: number } }
+      const registryOwner = registry.data?.owner as {
+        Shared?: { initial_shared_version: number };
+      };
+      const treasuryOwner = treasury.data?.owner as {
+        Shared?: { initial_shared_version: number };
+      };
 
       if (!registryOwner?.Shared) {
-        console.error("Registry is not a shared object:", registry.data?.owner)
-        toast.error("Registry is not a shared object")
-        return
+        console.error("Registry is not a shared object:", registry.data?.owner);
+        toast.error("Registry is not a shared object");
+        return;
       }
 
       if (!treasuryOwner?.Shared) {
-        console.error("Treasury is not a shared object:", treasury.data?.owner)
-        toast.error("Treasury is not a shared object")
-        return
+        console.error("Treasury is not a shared object:", treasury.data?.owner);
+        toast.error("Treasury is not a shared object");
+        return;
       }
 
       // Verify object types
       if (!registry.data?.type?.includes("::registry::VaultRegistry")) {
-        console.error("Invalid Registry type:", registry.data?.type)
-        toast.error("Invalid Registry type")
-        return
+        console.error("Invalid Registry type:", registry.data?.type);
+        toast.error("Invalid Registry type");
+        return;
       }
 
       if (!treasury.data?.type?.includes("::vault::VaultTreasury")) {
-        console.error("Invalid Treasury type:", treasury.data?.type)
-        toast.error("Invalid Treasury type")
-        return
+        console.error("Invalid Treasury type:", treasury.data?.type);
+        toast.error("Invalid Treasury type");
+        return;
       }
     } catch (error) {
-      console.error("Error fetching object details:", error)
-      toast.error(`Error fetching object details: ${error instanceof Error ? error.message : "Unknown error"}`)
-      return
+      console.error("Error fetching object details:", error);
+      toast.error(
+        `Error fetching object details: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+      return;
     }
 
     // Convert hours to milliseconds for expiry
-    const expiryMs = Date.now() + Number.parseInt(expiryHours) * 60 * 60 * 1000
+    const expiryMs = Date.now() + Number.parseInt(expiryHours) * 60 * 60 * 1000;
 
     // Convert display amounts to on-chain amounts using decimals
-    const peggedAmountOnChain = parseInputAmount(peggedAmount, selectedPeggedCoin.decimals)
-    const underlyingAmountOnChain = parseInputAmount(underlyingAmount, selectedUnderlyingCoin.decimals)
+    const peggedAmountOnChain = parseInputAmount(
+      peggedAmount,
+      selectedPeggedCoin.decimals
+    );
+    const underlyingAmountOnChain = parseInputAmount(
+      underlyingAmount,
+      selectedUnderlyingCoin.decimals
+    );
 
     // Verify coin amounts and balances
     if (peggedAmountOnChain !== underlyingAmountOnChain) {
       console.error(`Coin amounts must be equal:
         Pegged: ${peggedAmountOnChain.toString()}
         Underlying: ${underlyingAmountOnChain.toString()}
-      `)
-      toast.error("Pegged and underlying coin amounts must be equal")
-      return
+      `);
+      toast.error("Pegged and underlying coin amounts must be equal");
+      return;
     }
 
-    const peggedBalance = BigInt(selectedPeggedCoin.balance)
-    const underlyingBalance = BigInt(selectedUnderlyingCoin.balance)
+    const peggedBalance = BigInt(selectedPeggedCoin.balance);
+    const underlyingBalance = BigInt(selectedUnderlyingCoin.balance);
 
     if (peggedAmountOnChain > peggedBalance) {
       console.error(`Insufficient pegged coin balance:
         Required: ${peggedAmountOnChain.toString()}
         Available: ${peggedBalance.toString()}
-      `)
-      toast.error("Insufficient pegged coin balance")
-      return
+      `);
+      toast.error("Insufficient pegged coin balance");
+      return;
     }
 
     if (underlyingAmountOnChain > underlyingBalance) {
       console.error(`Insufficient underlying coin balance:
         Required: ${underlyingAmountOnChain.toString()}
         Available: ${underlyingBalance.toString()}
-      `)
-      toast.error("Insufficient underlying coin balance")
-      return
+      `);
+      toast.error("Insufficient underlying coin balance");
+      return;
     }
 
     // Debug: Log transaction details
@@ -283,20 +333,25 @@ export default function CreateVault({
       },
       expiryMs: expiryMs.toString(),
       currentTime: Date.now().toString(),
-    })
+    });
 
-    const tx = new Transaction()
+    const tx = new Transaction();
 
     // Convert amounts to u64 strings
-    const amount = peggedAmountOnChain.toString()
+    const amount = peggedAmountOnChain.toString();
 
     // Split the pegged coin first
-    const [splitPeggedCoin] = tx.splitCoins(tx.object(selectedPeggedCoin.id), [tx.pure.u64(amount)])
+    const [splitPeggedCoin] = tx.splitCoins(tx.object(selectedPeggedCoin.id), [
+      tx.pure.u64(amount),
+    ]);
 
     // Split the underlying coin with the exact same amount
-    const [splitUnderlyingCoin] = tx.splitCoins(tx.object(selectedUnderlyingCoin.id), [tx.pure.u64(amount)])
+    const [splitUnderlyingCoin] = tx.splitCoins(
+      tx.object(selectedUnderlyingCoin.id),
+      [tx.pure.u64(amount)]
+    );
 
-    console.log([selectedPeggedCoin.type, selectedUnderlyingCoin.type])
+    console.log([selectedPeggedCoin.type, selectedUnderlyingCoin.type]);
 
     // Create vault with split coins
     tx.moveCall({
@@ -310,7 +365,7 @@ export default function CreateVault({
         tx.pure.u64(expiryMs.toString()),
         tx.object("0x6"),
       ],
-    })
+    });
 
     // Add debug logging for the transaction
     console.log("Transaction Structure:", {
@@ -326,7 +381,7 @@ export default function CreateVault({
         split: splitUnderlyingCoin,
       },
       expiry: expiryMs.toString(),
-    })
+    });
 
     signAndExecute(
       {
@@ -334,16 +389,16 @@ export default function CreateVault({
       },
       {
         onSuccess: async ({ digest }) => {
-          console.log("Transaction success:", { digest })
+          console.log("Transaction success:", { digest });
           const { effects } = await suiClient.waitForTransaction({
             digest: digest,
             options: {
               showEffects: true,
             },
-          })
+          });
 
           if (effects?.status?.error) {
-            console.error("Transaction failed:", effects.status.error)
+            console.error("Transaction failed:", effects.status.error);
             toast.error(`Transaction failed: ${effects.status.error}`, {
               duration: 5000,
               style: {
@@ -351,14 +406,14 @@ export default function CreateVault({
                 background: "#333",
                 color: "#fff",
               },
-            })
-            return
+            });
+            return;
           }
 
           // The first created object should be our vault
-          const vaultId = effects?.created?.[0]?.reference?.objectId
+          const vaultId = effects?.created?.[0]?.reference?.objectId;
           if (!vaultId) {
-            console.error("No vault created in transaction")
+            console.error("No vault created in transaction");
             toast.error("No vault created in transaction", {
               duration: 5000,
               style: {
@@ -366,18 +421,18 @@ export default function CreateVault({
                 background: "#333",
                 color: "#fff",
               },
-            })
-            return
+            });
+            return;
           }
 
           // Refresh data
-          refreshData()
+          refreshData();
 
           toast.success(
             <div>
               <div>Successfully created vault!</div>
               <a
-                href={`https://suiexplorer.com/txblock/${digest}?network=testnet`}
+                href={`https://suiscan.xyz/testnet/tx/${digest}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{ color: "#0066cc", textDecoration: "underline" }}
@@ -392,45 +447,51 @@ export default function CreateVault({
                 background: "#333",
                 color: "#fff",
               },
-            },
-          )
+            }
+          );
 
           // Reset form
-          setPeggedAmount("")
-          setUnderlyingAmount("")
-          setSelectedPeggedCoin(null)
-          setSelectedUnderlyingCoin(null)
+          setPeggedAmount("");
+          setUnderlyingAmount("");
+          setSelectedPeggedCoin(null);
+          setSelectedUnderlyingCoin(null);
 
           // Call the onCreated callback
-          onCreated(vaultId)
+          onCreated(vaultId);
         },
         onError: (error) => {
-          console.error("Transaction error:", error)
-          toast.error(`Transaction error: ${error instanceof Error ? error.message : "Unknown error"}`, {
-            duration: 5000,
-            style: {
-              borderRadius: "10px",
-              background: "#333",
-              color: "#fff",
-            },
-          })
+          console.error("Transaction error:", error);
+          toast.error(
+            `Transaction error: ${error instanceof Error ? error.message : "Unknown error"}`,
+            {
+              duration: 5000,
+              style: {
+                borderRadius: "10px",
+                background: "#333",
+                color: "#fff",
+              },
+            }
+          );
         },
-      },
-    )
+      }
+    );
   }
 
-  const isLoading = isRegistryPending || isTreasuryPending || isCoinsLoading
-  const errors = [coinsError, registryError, treasuryError].filter(Boolean)
-  const isReady = registryData && treasuryData && userCoins && coinOptions.length > 0
+  const isLoading = isRegistryPending || isTreasuryPending || isCoinsLoading;
+  const errors = [coinsError, registryError, treasuryError].filter(Boolean);
+  const isReady =
+    registryData && treasuryData && userCoins && coinOptions.length > 0;
 
   if (errors.length > 0) {
     return (
       <Card className="bg-red-900/20 border-red-800">
         <CardContent className="p-6">
-          <p className="text-red-400">Error loading data: {errors.map((e) => e?.message).join(", ")}</p>
+          <p className="text-red-400">
+            Error loading data: {errors.map((e) => e?.message).join(", ")}
+          </p>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -466,8 +527,8 @@ export default function CreateVault({
             <Select
               value={selectedPeggedCoin?.id || ""}
               onValueChange={(value) => {
-                const coin = peggedCoins.find((c) => c.id === value)
-                setSelectedPeggedCoin(coin || null)
+                const coin = peggedCoins.find((c) => c.id === value);
+                setSelectedPeggedCoin(coin || null);
               }}
             >
               <SelectTrigger className="bg-gray-800 border-gray-700">
@@ -475,11 +536,14 @@ export default function CreateVault({
               </SelectTrigger>
               <SelectContent>
                 {peggedCoins.length === 0 ? (
-                  <SelectItem value="no-coins">No pegged coins available</SelectItem>
+                  <SelectItem value="no-coins">
+                    No pegged coins available
+                  </SelectItem>
                 ) : (
                   peggedCoins.map((coin) => (
                     <SelectItem key={coin.id} value={coin.id}>
-                      {coin.type} (Balance: {formatBalance(coin.balance, coin.decimals)})
+                      {coin.type} (Balance:{" "}
+                      {formatBalance(coin.balance, coin.decimals)})
                     </SelectItem>
                   ))
                 )}
@@ -494,12 +558,18 @@ export default function CreateVault({
               type="text"
               placeholder={`Pegged Coin Amount (${selectedPeggedCoin?.symbol || ""})`}
               value={peggedAmount}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setPeggedAmount(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                setPeggedAmount(e.target.value)
+              }
               className="bg-gray-800 border-gray-700"
             />
             {selectedPeggedCoin && (
               <p className="text-xs text-gray-400">
-                Available: {formatBalance(selectedPeggedCoin.balance, selectedPeggedCoin.decimals)}
+                Available:{" "}
+                {formatBalance(
+                  selectedPeggedCoin.balance,
+                  selectedPeggedCoin.decimals
+                )}
               </p>
             )}
           </div>
@@ -509,8 +579,8 @@ export default function CreateVault({
             <Select
               value={selectedUnderlyingCoin?.id || ""}
               onValueChange={(value) => {
-                const coin = underlyingCoins.find((c) => c.id === value)
-                setSelectedUnderlyingCoin(coin || null)
+                const coin = underlyingCoins.find((c) => c.id === value);
+                setSelectedUnderlyingCoin(coin || null);
               }}
             >
               <SelectTrigger className="bg-gray-800 border-gray-700">
@@ -518,11 +588,14 @@ export default function CreateVault({
               </SelectTrigger>
               <SelectContent>
                 {underlyingCoins.length === 0 ? (
-                  <SelectItem value="no-coins">No underlying coins available</SelectItem>
+                  <SelectItem value="no-coins">
+                    No underlying coins available
+                  </SelectItem>
                 ) : (
                   underlyingCoins.map((coin) => (
                     <SelectItem key={coin.id} value={coin.id}>
-                      {coin.type} (Balance: {formatBalance(coin.balance, coin.decimals)})
+                      {coin.type} (Balance:{" "}
+                      {formatBalance(coin.balance, coin.decimals)})
                     </SelectItem>
                   ))
                 )}
@@ -537,12 +610,18 @@ export default function CreateVault({
               type="text"
               placeholder={`Underlying Coin Amount (${selectedUnderlyingCoin?.symbol || ""})`}
               value={underlyingAmount}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setUnderlyingAmount(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                setUnderlyingAmount(e.target.value)
+              }
               className="bg-gray-800 border-gray-700"
             />
             {selectedUnderlyingCoin && (
               <p className="text-xs text-gray-400">
-                Available: {formatBalance(selectedUnderlyingCoin.balance, selectedUnderlyingCoin.decimals)}
+                Available:{" "}
+                {formatBalance(
+                  selectedUnderlyingCoin.balance,
+                  selectedUnderlyingCoin.decimals
+                )}
               </p>
             )}
           </div>
@@ -554,12 +633,17 @@ export default function CreateVault({
               type="number"
               placeholder="Expiry Hours"
               value={expiryHours}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setExpiryHours(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                setExpiryHours(e.target.value)
+              }
               className="bg-gray-800 border-gray-700"
             />
             {expiryHours && (
               <p className="text-xs text-gray-400">
-                Expires: {new Date(Date.now() + Number.parseInt(expiryHours) * 60 * 60 * 1000).toLocaleString()}
+                Expires:{" "}
+                {new Date(
+                  Date.now() + Number.parseInt(expiryHours) * 60 * 60 * 1000
+                ).toLocaleString()}
               </p>
             )}
           </div>
@@ -589,5 +673,5 @@ export default function CreateVault({
         </Button>
       </CardFooter>
     </Card>
-  )
+  );
 }

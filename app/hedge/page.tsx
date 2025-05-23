@@ -202,7 +202,7 @@ function HedgePage() {
               <div>
                 <div>Successfully transferred DS tokens!</div>
                 <a
-                  href={`https://suiexplorer.com/txblock/${result.digest}?network=testnet`}
+                  href={`https://suiscan.xyz/testnet/tx/${result.digest}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ color: "#0066cc", textDecoration: "underline" }}
