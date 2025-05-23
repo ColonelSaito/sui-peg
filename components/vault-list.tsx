@@ -463,18 +463,20 @@ export default function VaultList() {
                     <div className="font-medium">{formatBalance(fields.total_ds || "0")}</div>
                   </div>
 
-                  {/* Demo toggle for expiry status */}
-                  <div className="flex items-center justify-between bg-gray-800/70 p-3 rounded-lg">
-                    <div className="flex items-center space-x-2">
-                      <Clock className="h-4 w-4 text-gray-400" />
-                      <span className="text-sm text-gray-300">Demo: Toggle Vault Expiry</span>
+                  {/* Demo toggle for expiry status - only shown for active vaults */}
+                  {!isActuallyExpired && (
+                    <div className="flex items-center justify-between bg-gray-800/70 p-3 rounded-lg">
+                      <div className="flex items-center space-x-2">
+                        <Clock className="h-4 w-4 text-gray-400" />
+                        <span className="text-sm text-gray-300">Demo: Set Vault to Expired</span>
+                      </div>
+                      <Switch
+                        checked={isManuallyExpired}
+                        onCheckedChange={() => toggleVaultExpiry(vaultId)}
+                        aria-label="Toggle vault expiry for demo"
+                      />
                     </div>
-                    <Switch
-                      checked={isManuallyExpired}
-                      onCheckedChange={() => toggleVaultExpiry(vaultId)}
-                      aria-label="Toggle vault expiry for demo"
-                    />
-                  </div>
+                  )}
 
                   {/* Conditional rendering based on vault status */}
                   {!isExpired && hasRequiredTokens && (
