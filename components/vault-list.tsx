@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { ClipLoader } from "react-spinners"
 import toast from "react-hot-toast"
 import { Transaction } from "@mysten/sui/transactions"
-import { useCurrentAccount, useSuiClientQuery, useSignAndExecuteTransaction } from "@mysten/dapp-kit"
+import { useCurrentAccount, useSuiClientQuery, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit"
 import { TESTNET_VAULT_REGISTRY_ID, TESTNET_VAULT_TREASURY_ID } from "@/app/src/constants"
 import { useNetworkVariable } from "@/app/src/networkConfig"
 import type { SuiObjectResponse, CoinStruct } from "@mysten/sui/client"
@@ -57,6 +57,7 @@ export default function VaultList() {
   const depegSwapPackageId = useNetworkVariable("depegSwapPackageId")
   const { mutate: signAndExecute, isPending: isTransactionPending } = useSignAndExecuteTransaction()
   const queryClient = useQueryClient()
+  const suiClient = useSuiClient()
 
   // Add state for redeem input
   const [redeemInput, setRedeemInput] = useState<RedeemInput>({
@@ -71,32 +72,6 @@ export default function VaultList() {
       redeemUnderwriter: boolean
     }
   }>({})
-
-  // Function to refresh data after transactions
-  const refreshData = useCallback(() => {
-    // Invalidate and refetch all relevant queries
-    if (currentAccount?.address) {
-      // Refetch user coins
-      queryClient.invalidateQueries({
-        queryKey: ["getAllCoins", currentAccount.address],
-      })
-
-      // Refetch underwriter caps
-      queryClient.invalidateQueries({
-        queryKey: ["getOwnedObjects", currentAccount.address],
-      })
-    }
-
-    // Refetch registry and vaults
-    queryClient.invalidateQueries({
-      queryKey: ["getObject", TESTNET_VAULT_REGISTRY_ID],
-    })
-
-    // Refetch vault objects
-    queryClient.invalidateQueries({
-      queryKey: ["multiGetObjects"],
-    })
-  }, [queryClient, currentAccount?.address])
 
   // Query for UnderwriterCap objects owned by the current user
   const { data: underwriterCaps } = useSuiClientQuery(
@@ -184,6 +159,59 @@ export default function VaultList() {
     },
   )
 
+  // The useMemo approach with hooks inside won't work either
+  // Let's simplify and just focus on properly invalidating and refetching the specific vault
+
+  // Remove the vaultQueries code I just added and simplify the refreshData function:
+
+  const refreshData = useCallback(
+    (vaultId?: string) => {
+      // Invalidate and refetch all relevant queries
+      if (currentAccount?.address) {
+        // Refetch user coins
+        queryClient.invalidateQueries({
+          queryKey: ["getAllCoins", currentAccount.address],
+        })
+
+        // Refetch underwriter caps
+        queryClient.invalidateQueries({
+          queryKey: ["getOwnedObjects", currentAccount.address],
+        })
+      }
+
+      // Refetch registry
+      queryClient.invalidateQueries({
+        queryKey: ["getObject", TESTNET_VAULT_REGISTRY_ID],
+      })
+
+      // If a specific vault ID is provided, refetch that vault object directly
+      if (vaultId) {
+        // Force an immediate refetch of the specific vault
+        queryClient.fetchQuery({
+          queryKey: ["getObject", vaultId],
+          queryFn: () =>
+            suiClient.getObject({
+              id: vaultId,
+              options: {
+                showContent: true,
+                showType: true,
+                showOwner: true,
+              },
+            }),
+        })
+      }
+
+      // Refetch all vault objects
+      queryClient.invalidateQueries({
+        queryKey: ["multiGetObjects"],
+      })
+      queryClient.refetchQueries({
+        queryKey: ["multiGetObjects"],
+      })
+    },
+    [queryClient, currentAccount?.address, suiClient],
+  )
+
   const isLoading = isRegistryPending || (shouldFetchVaults && isVaultsPending)
   const error = registryError || vaultsError
 
@@ -204,7 +232,7 @@ export default function VaultList() {
       }
 
       if (!vault.data?.objectId || !vault.data?.content) {
-        toast.error("Invalid vault data!")
+        toast.error("Invalid vault data")
         return
       }
 
@@ -339,7 +367,7 @@ export default function VaultList() {
             setRedeemInput({ vaultId: "", amount: "" })
 
             // Refresh data by refetching queries
-            refreshData()
+            refreshData(vault.data?.objectId)
 
             toast.success(
               <div>
@@ -472,7 +500,7 @@ export default function VaultList() {
             console.log("Successfully redeemed underlying coins:", result)
 
             // Refresh data by refetching queries
-            refreshData()
+            refreshData(vault.data?.objectId)
 
             toast.success(
               <div>
@@ -536,7 +564,7 @@ export default function VaultList() {
       <div className="space-y-6">
         <Card className="bg-red-900/20 border-red-800">
           <CardContent className="p-6">
-            <p className="text-red-400">Error loading vaults: {error.message}</p>
+            <p className="text-red-400">Error fetching vaults: {error.message}</p>
           </CardContent>
         </Card>
       </div>
@@ -612,7 +640,7 @@ export default function VaultList() {
 
               return (
                 <Card key={vaultId} className="bg-gray-900 border-gray-800">
-                  <CardHeader className="pb-2">
+                  <CardHeader className="p-2">
                     <div className="flex justify-between items-center">
                       <CardTitle className="text-lg font-semibold break-all">
                         Vault ID: {truncateText(vaultId, 30)}
