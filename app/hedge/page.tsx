@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ArrowLeft, Info, Send } from "lucide-react"
-import { useState, type ChangeEvent } from "react"
-
+import { useState, type ChangeEvent, useCallback } from "react"
+import { useQueryClient } from "@tanstack/react-query"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import {
   ConnectButton,
   SuiClientProvider,
@@ -18,7 +19,6 @@ import {
   useSignAndExecuteTransaction,
   useSuiClient,
 } from "@mysten/dapp-kit"
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { Theme } from "@radix-ui/themes"
 import { networkConfig } from "../src/networkConfig"
 import { Transaction } from "@mysten/sui/transactions"
@@ -51,6 +51,7 @@ function HedgePage() {
   const depegSwapPackageId = useNetworkVariable("depegSwapPackageId")
   const suiClient = useSuiClient()
   const { mutate: signAndExecute, isPending: isTransactionPending } = useSignAndExecuteTransaction()
+  const queryClient = useQueryClient()
 
   // State for transfer input
   const [transferInput, setTransferInput] = useState({
@@ -58,14 +59,22 @@ function HedgePage() {
     recipient: "",
   })
 
-  // Add state for forcing refresh
-  const [refreshKey, setRefreshKey] = useState(0)
+  // Function to refresh data after transactions
+  const refreshData = useCallback(() => {
+    // Invalidate and refetch all relevant queries
+    if (currentAccount?.address) {
+      // Refetch user coins
+      queryClient.invalidateQueries({
+        queryKey: ["getAllCoins", currentAccount.address],
+      })
+    }
+  }, [queryClient, currentAccount?.address])
 
   // Update the handleVaultCreated function to refresh data
   const handleVaultCreated = (vaultId: string) => {
     console.log("Vault created with ID:", vaultId)
-    // Force refresh of all data
-    setRefreshKey((prev) => prev + 1)
+    // Refresh data
+    refreshData()
   }
 
   // Query for user's coins
@@ -76,8 +85,6 @@ function HedgePage() {
     },
     {
       enabled: !!currentAccount?.address,
-      // Add refreshKey to force refetch when it changes
-      queryKey: ["getAllCoins", currentAccount?.address, refreshKey],
     },
   )
 
@@ -158,6 +165,10 @@ function HedgePage() {
             console.log("Successfully transferred DS tokens:", result)
             // Clear the input after successful transfer
             setTransferInput({ amount: "", recipient: "" })
+
+            // Refresh data
+            refreshData()
+
             toast.success(
               <div>
                 <div>Successfully transferred DS tokens!</div>
@@ -319,6 +330,7 @@ function HedgePage() {
 function formatBalance(balance: string, decimals = 9): string {
   const value = BigInt(balance)
   const divisor = BigInt(10 ** decimals)
+
   const integerPart = value / divisor
   const fractionalPart = value % divisor
   const paddedFractional = fractionalPart.toString().padStart(decimals, "0")

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, type ChangeEvent } from "react"
+import { useState, useMemo, type ChangeEvent, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,6 +13,7 @@ import { useCurrentAccount, useSuiClientQuery, useSignAndExecuteTransaction, use
 import { TESTNET_VAULT_REGISTRY_ID, TESTNET_VAULT_TREASURY_ID } from "@/app/src/constants"
 import { useNetworkVariable } from "@/app/src/networkConfig"
 import type { CoinStruct } from "@mysten/sui/client"
+import { useQueryClient } from "@tanstack/react-query"
 
 interface CoinOption {
   id: string
@@ -60,12 +61,34 @@ export default function CreateVault({
   const suiClient = useSuiClient()
   const currentAccount = useCurrentAccount()
   const { mutate: signAndExecute, isSuccess, isPending: isTransactionPending } = useSignAndExecuteTransaction()
+  const queryClient = useQueryClient()
 
   const [selectedPeggedCoin, setSelectedPeggedCoin] = useState<CoinOption | null>(null)
   const [selectedUnderlyingCoin, setSelectedUnderlyingCoin] = useState<CoinOption | null>(null)
   const [expiryHours, setExpiryHours] = useState("24") // Default 24 hours
   const [peggedAmount, setPeggedAmount] = useState("")
   const [underlyingAmount, setUnderlyingAmount] = useState("")
+
+  // Function to refresh data after transactions
+  const refreshData = useCallback(() => {
+    // Invalidate and refetch all relevant queries
+    if (currentAccount?.address) {
+      // Refetch user coins
+      queryClient.invalidateQueries({
+        queryKey: ["getAllCoins", currentAccount.address],
+      })
+    }
+
+    // Refetch registry and vaults
+    queryClient.invalidateQueries({
+      queryKey: ["getObject", TESTNET_VAULT_REGISTRY_ID],
+    })
+
+    // Refetch vault objects
+    queryClient.invalidateQueries({
+      queryKey: ["multiGetObjects"],
+    })
+  }, [queryClient, currentAccount?.address])
 
   // Query for user's coins
   const {
@@ -346,6 +369,9 @@ export default function CreateVault({
             })
             return
           }
+
+          // Refresh data
+          refreshData()
 
           toast.success(
             <div>

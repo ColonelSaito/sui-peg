@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, type ChangeEvent } from "react"
+import { useMemo, useState, type ChangeEvent, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,6 +11,7 @@ import { useCurrentAccount, useSuiClientQuery, useSignAndExecuteTransaction } fr
 import { TESTNET_VAULT_REGISTRY_ID, TESTNET_VAULT_TREASURY_ID } from "@/app/src/constants"
 import { useNetworkVariable } from "@/app/src/networkConfig"
 import type { SuiObjectResponse, CoinStruct } from "@mysten/sui/client"
+import { useQueryClient } from "@tanstack/react-query"
 
 function formatBalance(balance: string | number, decimals = 9): string {
   const value = BigInt(balance)
@@ -55,6 +56,7 @@ export default function VaultList() {
   const currentAccount = useCurrentAccount()
   const depegSwapPackageId = useNetworkVariable("depegSwapPackageId")
   const { mutate: signAndExecute, isPending: isTransactionPending } = useSignAndExecuteTransaction()
+  const queryClient = useQueryClient()
 
   // Add state for redeem input
   const [redeemInput, setRedeemInput] = useState<RedeemInput>({
@@ -69,6 +71,32 @@ export default function VaultList() {
       redeemUnderwriter: boolean
     }
   }>({})
+
+  // Function to refresh data after transactions
+  const refreshData = useCallback(() => {
+    // Invalidate and refetch all relevant queries
+    if (currentAccount?.address) {
+      // Refetch user coins
+      queryClient.invalidateQueries({
+        queryKey: ["getAllCoins", currentAccount.address],
+      })
+
+      // Refetch underwriter caps
+      queryClient.invalidateQueries({
+        queryKey: ["getOwnedObjects", currentAccount.address],
+      })
+    }
+
+    // Refetch registry and vaults
+    queryClient.invalidateQueries({
+      queryKey: ["getObject", TESTNET_VAULT_REGISTRY_ID],
+    })
+
+    // Refetch vault objects
+    queryClient.invalidateQueries({
+      queryKey: ["multiGetObjects"],
+    })
+  }, [queryClient, currentAccount?.address])
 
   // Query for UnderwriterCap objects owned by the current user
   const { data: underwriterCaps } = useSuiClientQuery(
@@ -311,7 +339,7 @@ export default function VaultList() {
             setRedeemInput({ vaultId: "", amount: "" })
 
             // Refresh data by refetching queries
-            window.location.reload() // Simple refresh - you can implement more sophisticated refetching
+            refreshData()
 
             toast.success(
               <div>
@@ -443,8 +471,8 @@ export default function VaultList() {
           onSuccess: (result) => {
             console.log("Successfully redeemed underlying coins:", result)
 
-            // Refresh data by reloading the page
-            window.location.reload() // Simple refresh - you can implement more sophisticated refetching
+            // Refresh data by refetching queries
+            refreshData()
 
             toast.success(
               <div>
