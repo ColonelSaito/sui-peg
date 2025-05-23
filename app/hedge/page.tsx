@@ -1,36 +1,75 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { ArrowLeft, Info, Send } from "lucide-react"
-import { useState, type ChangeEvent, useCallback } from "react"
-import { useQueryClient } from "@tanstack/react-query"
-import { useCurrentAccount, useSuiClientQuery, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit"
-import { Transaction } from "@mysten/sui/transactions"
-import { useNetworkVariable } from "../src/networkConfig"
-import { Toaster } from "react-hot-toast"
-import toast from "react-hot-toast"
-import VaultList from "@/components/vault-list"
-import CreateVault from "@/components/create-vault"
-import { ClipLoader } from "react-spinners"
-import ConnectButtonWrapper from "@/components/connect-button-wrapper"
+import Link from "next/link";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, Info, Send } from "lucide-react";
+import { useState, type ChangeEvent, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useCurrentAccount,
+  useSuiClientQuery,
+  useSignAndExecuteTransaction,
+  useSuiClient,
+} from "@mysten/dapp-kit";
+import { Transaction } from "@mysten/sui/transactions";
+import { networkConfig, useNetworkVariable } from "../src/networkConfig";
+import { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
+import VaultList from "@/components/vault-list";
+import CreateVault from "@/components/create-vault";
+import { ClipLoader } from "react-spinners";
+import ConnectButtonWrapper from "@/components/connect-button-wrapper";
 
-export default function HedgePage() {
-  const currentAccount = useCurrentAccount()
-  const depegSwapPackageId = useNetworkVariable("depegSwapPackageId")
-  const suiClient = useSuiClient()
-  const { mutate: signAndExecute, isPending: isTransactionPending } = useSignAndExecuteTransaction()
-  const queryClient = useQueryClient()
+import React from "react";
+import ReactDOM from "react-dom/client";
+import "@mysten/dapp-kit/dist/index.css";
+import "@radix-ui/themes/styles.css";
+
+import { SuiClientProvider, WalletProvider } from "@mysten/dapp-kit";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Theme } from "@radix-ui/themes";
+
+const queryClient = new QueryClient();
+
+export default function HedgePageDefault() {
+  return (
+    <React.StrictMode>
+      <Theme appearance="dark">
+        <QueryClientProvider client={queryClient}>
+          <SuiClientProvider networks={networkConfig} defaultNetwork="testnet">
+            <WalletProvider autoConnect>
+              <HedgePage />
+            </WalletProvider>
+          </SuiClientProvider>
+        </QueryClientProvider>
+      </Theme>
+    </React.StrictMode>
+  );
+}
+
+function HedgePage() {
+  const currentAccount = useCurrentAccount();
+  const depegSwapPackageId = useNetworkVariable("depegSwapPackageId");
+  const suiClient = useSuiClient();
+  const { mutate: signAndExecute, isPending: isTransactionPending } =
+    useSignAndExecuteTransaction();
+  const queryClient = useQueryClient();
 
   // State for transfer input
   const [transferInput, setTransferInput] = useState({
     amount: "",
     recipient: "",
-  })
+  });
 
   // Function to refresh data after transactions
   const refreshData = useCallback(() => {
@@ -39,16 +78,16 @@ export default function HedgePage() {
       // Refetch user coins
       queryClient.invalidateQueries({
         queryKey: ["getAllCoins", currentAccount.address],
-      })
+      });
     }
-  }, [queryClient, currentAccount?.address])
+  }, [queryClient, currentAccount?.address]);
 
   // Update the handleVaultCreated function to refresh data
   const handleVaultCreated = (vaultId: string) => {
-    console.log("Vault created with ID:", vaultId)
+    console.log("Vault created with ID:", vaultId);
     // Refresh data
-    refreshData()
-  }
+    refreshData();
+  };
 
   // Query for user's coins
   const { data: userCoins, isPending: isCoinsLoading } = useSuiClientQuery(
@@ -58,8 +97,8 @@ export default function HedgePage() {
     },
     {
       enabled: !!currentAccount?.address,
-    },
-  )
+    }
+  );
 
   // Format coins for display
   const formattedCoins =
@@ -68,66 +107,83 @@ export default function HedgePage() {
       type: coin.coinType,
       balance: formatBalance(coin.balance, 9),
       rawBalance: coin.balance,
-    })) || []
+    })) || [];
 
   // Find SUI and sSUI coins
-  const suiCoins = formattedCoins.filter((coin) => coin.type.includes("::underlying_coin::"))
-  const sSuiCoins = formattedCoins.filter((coin) => coin.type.includes("::pegged_coin::"))
-  const dsTokens = formattedCoins.filter((coin) => coin.type === `${depegSwapPackageId}::vault::VAULT`)
+  const suiCoins = formattedCoins.filter((coin) =>
+    coin.type.includes("::underlying_coin::")
+  );
+  const sSuiCoins = formattedCoins.filter((coin) =>
+    coin.type.includes("::pegged_coin::")
+  );
+  const dsTokens = formattedCoins.filter(
+    (coin) => coin.type === `${depegSwapPackageId}::vault::VAULT`
+  );
 
   // Handle transferring depeg tokens to another address (P2P insurance)
   const handleTransferDepegTokens = async () => {
     if (!currentAccount?.address) {
-      toast.error("Please connect your wallet first!")
-      return
+      toast.error("Please connect your wallet first!");
+      return;
     }
 
     if (!transferInput.amount || !transferInput.recipient) {
-      toast.error("Please enter both amount and recipient address")
-      return
+      toast.error("Please enter both amount and recipient address");
+      return;
     }
 
     // Validate recipient address
-    if (!transferInput.recipient.startsWith("0x") || transferInput.recipient.length !== 66) {
-      toast.error("Invalid recipient address format")
-      return
+    if (
+      !transferInput.recipient.startsWith("0x") ||
+      transferInput.recipient.length !== 66
+    ) {
+      toast.error("Invalid recipient address format");
+      return;
     }
 
     // Check if user has DS tokens
     if (!dsTokens.length) {
-      toast.error("You don't have any Depeg Swap tokens!")
-      return
+      toast.error("You don't have any Depeg Swap tokens!");
+      return;
     }
 
     // Parse the DS amount to transfer
-    const DS_DECIMALS = 9
-    const dsAmountToTransfer = parseInputAmount(transferInput.amount, DS_DECIMALS)
+    const DS_DECIMALS = 9;
+    const dsAmountToTransfer = parseInputAmount(
+      transferInput.amount,
+      DS_DECIMALS
+    );
 
     if (dsAmountToTransfer <= 0n) {
-      toast.error("Please enter a valid amount of DS tokens to transfer")
-      return
+      toast.error("Please enter a valid amount of DS tokens to transfer");
+      return;
     }
 
     // Get DS token and check balance
-    const dsToken = dsTokens[0] // Using first DS token for simplicity
+    const dsToken = dsTokens[0]; // Using first DS token for simplicity
     if (BigInt(dsToken.rawBalance) < dsAmountToTransfer) {
       toast.error(
         `Insufficient DS tokens. Need ${formatBalance(
           dsAmountToTransfer.toString(),
-          DS_DECIMALS,
-        )} but you have ${dsToken.balance}`,
-      )
-      return
+          DS_DECIMALS
+        )} but you have ${dsToken.balance}`
+      );
+      return;
     }
 
-    const tx = new Transaction()
+    const tx = new Transaction();
 
     try {
       // Split DS token to the exact amount needed (with decimals)
-      const [splitDsToken] = tx.splitCoins(tx.object(dsToken.id), [tx.pure.u64(dsAmountToTransfer.toString())])
+      const [splitDsToken] = tx.splitCoins(tx.object(dsToken.id), [
+        tx.pure.u64(dsAmountToTransfer.toString()),
+      ]);
 
       // Transfer the split tokens to the recipient
-      tx.transferObjects([splitDsToken], tx.pure.address(transferInput.recipient))
+      tx.transferObjects(
+        [splitDsToken],
+        tx.pure.address(transferInput.recipient)
+      );
 
       signAndExecute(
         {
@@ -135,12 +191,12 @@ export default function HedgePage() {
         },
         {
           onSuccess: (result) => {
-            console.log("Successfully transferred DS tokens:", result)
+            console.log("Successfully transferred DS tokens:", result);
             // Clear the input after successful transfer
-            setTransferInput({ amount: "", recipient: "" })
+            setTransferInput({ amount: "", recipient: "" });
 
             // Refresh data
-            refreshData()
+            refreshData();
 
             toast.success(
               <div>
@@ -153,27 +209,34 @@ export default function HedgePage() {
                 >
                   View transaction
                 </a>
-              </div>,
-            )
+              </div>
+            );
           },
           onError: (error) => {
-            console.error("Failed to transfer DS tokens:", error)
-            toast.error(`Failed to transfer: ${error instanceof Error ? error.message : "Unknown error"}`)
+            console.error("Failed to transfer DS tokens:", error);
+            toast.error(
+              `Failed to transfer: ${error instanceof Error ? error.message : "Unknown error"}`
+            );
           },
-        },
-      )
+        }
+      );
     } catch (error) {
-      console.error("Error executing transaction:", error)
-      toast.error(`Error executing transaction: ${error instanceof Error ? error.message : "Unknown error"}`)
+      console.error("Error executing transaction:", error);
+      toast.error(
+        `Error executing transaction: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-black text-white">
       <Toaster position="top-right" />
       <div className="container px-4 py-8 mx-auto">
         <div className="flex justify-between items-center mb-8">
-          <Link href="/" className="inline-flex items-center text-gray-400 hover:text-white">
+          <Link
+            href="/"
+            className="inline-flex items-center text-gray-400 hover:text-white"
+          >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Home
           </Link>
@@ -184,7 +247,8 @@ export default function HedgePage() {
         <div className="max-w-4xl mx-auto">
           <h1 className="text-3xl font-bold mb-2">SUI Depeg Vault</h1>
           <p className="text-gray-400 mb-8">
-            Participate as an underwriter or hedger in the SUI depeg insurance market
+            Participate as an underwriter or hedger in the SUI depeg insurance
+            market
           </p>
 
           <Tabs defaultValue="underwrite" className="w-full">
@@ -202,16 +266,19 @@ export default function HedgePage() {
               <Card className="bg-gray-900 border-gray-800">
                 <CardHeader>
                   <CardTitle>Transfer DS Tokens (P2P Insurance)</CardTitle>
-                  <CardDescription>Transfer your Depeg Swap tokens to another address</CardDescription>
+                  <CardDescription>
+                    Transfer your Depeg Swap tokens to another address
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700 mb-4">
                     <div className="flex items-start gap-2">
                       <Info className="h-5 w-5 text-blue-400 mt-0.5 flex-shrink-0" />
                       <p className="text-sm text-gray-300">
-                        Transfer your Depeg Swap (DS) tokens to another address. This simulates selling insurance in a
-                        peer-to-peer manner. The recipient can use these tokens to redeem underlying assets if a depeg
-                        event occurs.
+                        Transfer your Depeg Swap (DS) tokens to another address.
+                        This simulates selling insurance in a peer-to-peer
+                        manner. The recipient can use these tokens to redeem
+                        underlying assets if a depeg event occurs.
                       </p>
                     </div>
                   </div>
@@ -226,7 +293,10 @@ export default function HedgePage() {
                         className="bg-gray-800 border-gray-700"
                         value={transferInput.amount}
                         onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                          setTransferInput({ ...transferInput, amount: e.target.value })
+                          setTransferInput({
+                            ...transferInput,
+                            amount: e.target.value,
+                          })
                         }
                       />
                       {dsTokens.length > 0 && (
@@ -245,7 +315,10 @@ export default function HedgePage() {
                         className="bg-gray-800 border-gray-700"
                         value={transferInput.recipient}
                         onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                          setTransferInput({ ...transferInput, recipient: e.target.value })
+                          setTransferInput({
+                            ...transferInput,
+                            recipient: e.target.value,
+                          })
                         }
                       />
                     </div>
@@ -253,11 +326,19 @@ export default function HedgePage() {
                     <Button
                       className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 mt-4"
                       onClick={handleTransferDepegTokens}
-                      disabled={isTransactionPending || !transferInput.amount || !transferInput.recipient}
+                      disabled={
+                        isTransactionPending ||
+                        !transferInput.amount ||
+                        !transferInput.recipient
+                      }
                     >
                       {isTransactionPending ? (
                         <div className="flex items-center">
-                          <ClipLoader size={16} color="#ffffff" className="mr-2" />
+                          <ClipLoader
+                            size={16}
+                            color="#ffffff"
+                            className="mr-2"
+                          />
                           Processing...
                         </div>
                       ) : (
@@ -282,50 +363,60 @@ export default function HedgePage() {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div className="bg-gray-800 p-4 rounded-lg">
                 <div className="text-sm text-gray-400 mb-1">SUI Balance</div>
-                <div className="text-xl font-medium">{suiCoins.length > 0 ? suiCoins[0].balance : "0"}</div>
+                <div className="text-xl font-medium">
+                  {suiCoins.length > 0 ? suiCoins[0].balance : "0"}
+                </div>
               </div>
               <div className="bg-gray-800 p-4 rounded-lg">
                 <div className="text-sm text-gray-400 mb-1">sSUI Balance</div>
-                <div className="text-xl font-medium">{sSuiCoins.length > 0 ? sSuiCoins[0].balance : "0"}</div>
+                <div className="text-xl font-medium">
+                  {sSuiCoins.length > 0 ? sSuiCoins[0].balance : "0"}
+                </div>
               </div>
               <div className="bg-gray-800 p-4 rounded-lg">
-                <div className="text-sm text-gray-400 mb-1">DS Token Balance</div>
-                <div className="text-xl font-medium">{dsTokens.length > 0 ? dsTokens[0].balance : "0"}</div>
+                <div className="text-sm text-gray-400 mb-1">
+                  DS Token Balance
+                </div>
+                <div className="text-xl font-medium">
+                  {dsTokens.length > 0 ? dsTokens[0].balance : "0"}
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 // Helper functions
 function formatBalance(balance: string, decimals = 9): string {
-  const value = BigInt(balance)
-  const divisor = BigInt(10 ** decimals)
+  const value = BigInt(balance);
+  const divisor = BigInt(10 ** decimals);
 
-  const integerPart = value / divisor
-  const fractionalPart = value % divisor
-  const paddedFractional = fractionalPart.toString().padStart(decimals, "0")
-  return `${integerPart}.${paddedFractional.substring(0, 4)}`
+  const integerPart = value / divisor;
+  const fractionalPart = value % divisor;
+  const paddedFractional = fractionalPart.toString().padStart(decimals, "0");
+  return `${integerPart}.${paddedFractional.substring(0, 4)}`;
 }
 
 function parseInputAmount(amount: string, decimals: number): bigint {
   // Remove any commas
-  amount = amount.replace(/,/g, "")
+  amount = amount.replace(/,/g, "");
 
   // Split on decimal point
-  const parts = amount.split(".")
-  const integerPart = parts[0]
-  const fractionalPart = parts[1] || ""
+  const parts = amount.split(".");
+  const integerPart = parts[0];
+  const fractionalPart = parts[1] || "";
 
   // Pad or truncate fractional part to match decimals
-  const normalizedFractional = fractionalPart.padEnd(decimals, "0").slice(0, decimals)
+  const normalizedFractional = fractionalPart
+    .padEnd(decimals, "0")
+    .slice(0, decimals);
 
   // Combine integer and fractional parts
-  const fullValue = `${integerPart}${normalizedFractional}`
+  const fullValue = `${integerPart}${normalizedFractional}`;
 
   // Convert to BigInt, removing any leading zeros
-  return BigInt(fullValue.replace(/^0+/, "") || "0")
+  return BigInt(fullValue.replace(/^0+/, "") || "0");
 }
