@@ -109,7 +109,7 @@ function HedgePage() {
       rawBalance: coin.balance,
     })) || [];
 
-  // Find SUI and sSUI coins
+  // Find wBTC and LBTC coins
   const suiCoins = formattedCoins.filter((coin) =>
     coin.type.includes("::underlying_coin::")
   );
@@ -245,9 +245,9 @@ function HedgePage() {
         </div>
 
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold mb-2">SUI Depeg Vault</h1>
+          <h1 className="text-3xl font-bold mb-2">wBTC Depeg Vault</h1>
           <p className="text-gray-400 mb-8">
-            Participate as an underwriter or hedger in the SUI depeg insurance
+            Participate as an underwriter or hedger in the wBTC depeg insurance
             market
           </p>
 
@@ -362,13 +362,13 @@ function HedgePage() {
             <h3 className="text-xl font-semibold mb-4">Your Token Balances</h3>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div className="bg-gray-800 p-4 rounded-lg">
-                <div className="text-sm text-gray-400 mb-1">SUI Balance</div>
+                <div className="text-sm text-gray-400 mb-1">wBTC Balance</div>
                 <div className="text-xl font-medium">
                   {suiCoins.length > 0 ? suiCoins[0].balance : "0"}
                 </div>
               </div>
               <div className="bg-gray-800 p-4 rounded-lg">
-                <div className="text-sm text-gray-400 mb-1">sSUI Balance</div>
+                <div className="text-sm text-gray-400 mb-1">LBTC Balance</div>
                 <div className="text-xl font-medium">
                   {sSuiCoins.length > 0 ? sSuiCoins[0].balance : "0"}
                 </div>
