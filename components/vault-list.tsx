@@ -45,6 +45,12 @@ interface RedeemInput {
   amount: string
 }
 
+// Helper function to truncate long text
+function truncateText(text: string, maxLength = 50): string {
+  if (text.length <= maxLength) return text
+  return text.substring(0, maxLength) + "..."
+}
+
 export default function VaultList() {
   const currentAccount = useCurrentAccount()
   const depegSwapPackageId = useNetworkVariable("depegSwapPackageId")
@@ -55,6 +61,14 @@ export default function VaultList() {
     vaultId: "",
     amount: "",
   })
+
+  // Add state for separate loading states
+  const [loadingStates, setLoadingStates] = useState<{
+    [vaultId: string]: {
+      redeemDepegSwap: boolean
+      redeemUnderwriter: boolean
+    }
+  }>({})
 
   // Query for UnderwriterCap objects owned by the current user
   const { data: underwriterCaps } = useSuiClientQuery(
@@ -146,103 +160,112 @@ export default function VaultList() {
   const error = registryError || vaultsError
 
   const handleRedeemDepegSwap = async (vault: SuiObjectResponse) => {
-    if (!currentAccount?.address) {
-      toast.error("Please connect your wallet first!")
-      return
-    }
+    const vaultId = vault.data?.objectId
+    if (!vaultId) return
 
-    if (!vault.data?.objectId || !vault.data?.content) {
-      toast.error("Invalid vault data!")
-      return
-    }
-
-    const vaultContent = vault.data.content as any
-    if (!vaultContent?.fields) {
-      toast.error("Invalid vault data!")
-      return
-    }
-
-    const vaultExpiry = Number(vaultContent.fields.expiry)
-    if (vaultExpiry <= Date.now()) {
-      toast.error("Vault has expired!")
-      return
-    }
-
-    // Check if user has DS tokens
-    if (!userTokens.dsTokens.length) {
-      toast.error("You don't have any Depeg Swap tokens!")
-      return
-    }
-
-    // Check if user has pegged tokens
-    if (!userTokens.peggedTokens.length) {
-      toast.error("You don't have any pegged tokens!")
-      return
-    }
-
-    // Parse the DS amount to redeem with decimals
-    const DS_DECIMALS = 9 // Default Sui token decimals
-    const PEGGED_DECIMALS = 9 // Default Sui token decimals
-
-    // Convert display amount to on-chain amount
-    const dsAmountToRedeem = parseInputAmount(redeemInput.amount, DS_DECIMALS)
-    if (dsAmountToRedeem <= 0n) {
-      toast.error("Please enter a valid amount of DS tokens to redeem")
-      return
-    }
-
-    // Check if amount is divisible by 100 (DS:Pegged ratio)
-    if (dsAmountToRedeem % 100n !== 0n) {
-      toast.error("DS token amount must be divisible by 100")
-      return
-    }
-
-    // Calculate required pegged token amount (with proper decimals)
-    const requiredPeggedAmount = dsAmountToRedeem / 100n
-
-    // Extract pegged and underlying coin types from the vault fields
-    const peggedType = vaultContent.fields.pegged_vault.type.match(/Coin<(.+)>/)?.[1]
-    const underlyingType = vaultContent.fields.underlying_vault.type.match(/Coin<(.+)>/)?.[1]
-
-    if (!peggedType || !underlyingType) {
-      toast.error("Could not extract coin types from vault!")
-      return
-    }
-
-    // Find matching pegged token
-    const matchingPeggedToken = userTokens.peggedTokens.find((token) => token.coinType === peggedType)
-
-    if (!matchingPeggedToken) {
-      toast.error(`You don't have the required pegged token: ${peggedType}`)
-      return
-    }
-
-    // Check if user has enough pegged tokens (comparing with proper decimals)
-    if (BigInt(matchingPeggedToken.balance) < requiredPeggedAmount) {
-      toast.error(
-        `Insufficient pegged tokens. Need ${formatBalance(
-          requiredPeggedAmount.toString(),
-          PEGGED_DECIMALS,
-        )} but you have ${formatBalance(matchingPeggedToken.balance, PEGGED_DECIMALS)}`,
-      )
-      return
-    }
-
-    // Get DS token and check balance
-    const dsToken = userTokens.dsTokens[0] // Using first DS token for simplicity
-    if (BigInt(dsToken.balance) < dsAmountToRedeem) {
-      toast.error(
-        `Insufficient DS tokens. Need ${formatBalance(
-          dsAmountToRedeem.toString(),
-          DS_DECIMALS,
-        )} but you have ${formatBalance(dsToken.balance, DS_DECIMALS)}`,
-      )
-      return
-    }
-
-    const tx = new Transaction()
+    // Set loading state for this specific vault's depeg swap action
+    setLoadingStates((prev) => ({
+      ...prev,
+      [vaultId]: { ...prev[vaultId], redeemDepegSwap: true },
+    }))
 
     try {
+      if (!currentAccount?.address) {
+        toast.error("Please connect your wallet first!")
+        return
+      }
+
+      if (!vault.data?.objectId || !vault.data?.content) {
+        toast.error("Invalid vault data!")
+        return
+      }
+
+      const vaultContent = vault.data.content as any
+      if (!vaultContent?.fields) {
+        toast.error("Invalid vault data!")
+        return
+      }
+
+      const vaultExpiry = Number(vaultContent.fields.expiry)
+      if (vaultExpiry <= Date.now()) {
+        toast.error("Vault has expired!")
+        return
+      }
+
+      // Check if user has DS tokens
+      if (!userTokens.dsTokens.length) {
+        toast.error("You don't have any Depeg Swap tokens!")
+        return
+      }
+
+      // Check if user has pegged tokens
+      if (!userTokens.peggedTokens.length) {
+        toast.error("You don't have any pegged tokens!")
+        return
+      }
+
+      // Parse the DS amount to redeem with decimals
+      const DS_DECIMALS = 9 // Default Sui token decimals
+      const PEGGED_DECIMALS = 9 // Default Sui token decimals
+
+      // Convert display amount to on-chain amount
+      const dsAmountToRedeem = parseInputAmount(redeemInput.amount, DS_DECIMALS)
+      if (dsAmountToRedeem <= 0n) {
+        toast.error("Please enter a valid amount of DS tokens to redeem")
+        return
+      }
+
+      // Check if amount is divisible by 100 (DS:Pegged ratio)
+      if (dsAmountToRedeem % 100n !== 0n) {
+        toast.error("DS token amount must be divisible by 100")
+        return
+      }
+
+      // Calculate required pegged token amount (with proper decimals)
+      const requiredPeggedAmount = dsAmountToRedeem / 100n
+
+      // Extract pegged and underlying coin types from the vault fields
+      const peggedType = vaultContent.fields.pegged_vault.type.match(/Coin<(.+)>/)?.[1]
+      const underlyingType = vaultContent.fields.underlying_vault.type.match(/Coin<(.+)>/)?.[1]
+
+      if (!peggedType || !underlyingType) {
+        toast.error("Could not extract coin types from vault!")
+        return
+      }
+
+      // Find matching pegged token
+      const matchingPeggedToken = userTokens.peggedTokens.find((token) => token.coinType === peggedType)
+
+      if (!matchingPeggedToken) {
+        toast.error(`You don't have the required pegged token: ${peggedType}`)
+        return
+      }
+
+      // Check if user has enough pegged tokens (comparing with proper decimals)
+      if (BigInt(matchingPeggedToken.balance) < requiredPeggedAmount) {
+        toast.error(
+          `Insufficient pegged tokens. Need ${formatBalance(
+            requiredPeggedAmount.toString(),
+            PEGGED_DECIMALS,
+          )} but you have ${formatBalance(matchingPeggedToken.balance, PEGGED_DECIMALS)}`,
+        )
+        return
+      }
+
+      // Get DS token and check balance
+      const dsToken = userTokens.dsTokens[0] // Using first DS token for simplicity
+      if (BigInt(dsToken.balance) < dsAmountToRedeem) {
+        toast.error(
+          `Insufficient DS tokens. Need ${formatBalance(
+            dsAmountToRedeem.toString(),
+            DS_DECIMALS,
+          )} but you have ${formatBalance(dsToken.balance, DS_DECIMALS)}`,
+        )
+        return
+      }
+
+      const tx = new Transaction()
+
       // Split DS token to the exact amount needed (with decimals)
       const [splitDsToken] = tx.splitCoins(tx.object(dsToken.coinObjectId), [tx.pure.u64(dsAmountToRedeem.toString())])
 
@@ -286,6 +309,10 @@ export default function VaultList() {
             console.log("Successfully redeemed Depeg Swap tokens:", result)
             // Clear the input after successful redemption
             setRedeemInput({ vaultId: "", amount: "" })
+
+            // Refresh data by refetching queries
+            window.location.reload() // Simple refresh - you can implement more sophisticated refetching
+
             toast.success(
               <div>
                 <div>Successfully redeemed Depeg Swap tokens!</div>
@@ -331,60 +358,75 @@ export default function VaultList() {
           color: "#fff",
         },
       })
+    } finally {
+      // Clear loading state
+      setLoadingStates((prev) => ({
+        ...prev,
+        [vaultId]: { ...prev[vaultId], redeemDepegSwap: false },
+      }))
     }
   }
 
   const handleRedeemUnderlying = async (vault: SuiObjectResponse) => {
-    if (!underwriterCaps?.data?.[0]?.data?.objectId) {
-      toast.error("You don't have the UnderwriterCap required to redeem underlying coins!")
-      return
-    }
+    const vaultId = vault.data?.objectId
+    if (!vaultId) return
 
-    if (!currentAccount?.address) {
-      toast.error("You don't have an account!")
-      return
-    }
-
-    if (!vault.data?.type || !vault.data?.objectId) {
-      toast.error("Invalid vault data!")
-      return
-    }
-
-    const vaultContent = vault.data?.content as unknown as {
-      dataType: "moveObject"
-      fields: {
-        pegged_vault: {
-          type: string
-        }
-        underlying_vault: {
-          type: string
-        }
-      }
-    }
-
-    if (!vaultContent?.fields) {
-      toast.error("Invalid vault data!")
-      return
-    }
-
-    // Extract pegged and underlying coin types from the vault fields
-    const peggedType = vaultContent.fields.pegged_vault.type.match(/Coin<(.+)>/)?.[1]
-    const underlyingType = vaultContent.fields.underlying_vault.type.match(/Coin<(.+)>/)?.[1]
-
-    if (!peggedType || !underlyingType) {
-      toast.error("Could not extract coin types from vault!")
-      return
-    }
-
-    console.log("Transaction input", {
-      vaultId: vault.data.objectId,
-      underwriterCapId: underwriterCaps.data[0].data.objectId,
-      clockId: "0x6",
-    })
-
-    const tx = new Transaction()
+    // Set loading state for this specific vault's underwriter action
+    setLoadingStates((prev) => ({
+      ...prev,
+      [vaultId]: { ...prev[vaultId], redeemUnderwriter: true },
+    }))
 
     try {
+      if (!underwriterCaps?.data?.[0]?.data?.objectId) {
+        toast.error("You don't have the UnderwriterCap required to redeem underlying coins!")
+        return
+      }
+
+      if (!currentAccount?.address) {
+        toast.error("You don't have an account!")
+        return
+      }
+
+      if (!vault.data?.type || !vault.data?.objectId) {
+        toast.error("Invalid vault data!")
+        return
+      }
+
+      const vaultContent = vault.data?.content as unknown as {
+        dataType: "moveObject"
+        fields: {
+          pegged_vault: {
+            type: string
+          }
+          underlying_vault: {
+            type: string
+          }
+        }
+      }
+
+      if (!vaultContent?.fields) {
+        toast.error("Invalid vault data!")
+        return
+      }
+
+      // Extract pegged and underlying coin types from the vault fields
+      const peggedType = vaultContent.fields.pegged_vault.type.match(/Coin<(.+)>/)?.[1]
+      const underlyingType = vaultContent.fields.underlying_vault.type.match(/Coin<(.+)>/)?.[1]
+
+      if (!peggedType || !underlyingType) {
+        toast.error("Could not extract coin types from vault!")
+        return
+      }
+
+      console.log("Transaction input", {
+        vaultId: vault.data.objectId,
+        underwriterCapId: underwriterCaps.data[0].data.objectId,
+        clockId: "0x6",
+      })
+
+      const tx = new Transaction()
+
       const [underlyingCoin, peggedCoin] = tx.moveCall({
         target: `${depegSwapPackageId}::vault::redeem_underlying`,
         typeArguments: [peggedType, underlyingType],
@@ -400,6 +442,10 @@ export default function VaultList() {
         {
           onSuccess: (result) => {
             console.log("Successfully redeemed underlying coins:", result)
+
+            // Refresh data by reloading the page
+            window.location.reload() // Simple refresh - you can implement more sophisticated refetching
+
             toast.success(
               <div>
                 <div>Successfully redeemed underlying coins!</div>
@@ -448,6 +494,12 @@ export default function VaultList() {
           color: "#fff",
         },
       })
+    } finally {
+      // Clear loading state
+      setLoadingStates((prev) => ({
+        ...prev,
+        [vaultId]: { ...prev[vaultId], redeemUnderwriter: false },
+      }))
     }
   }
 
@@ -506,6 +558,7 @@ export default function VaultList() {
               const fields = content?.fields || {}
               const status = Number(fields.expiry) > Date.now() ? "Active" : "Expired"
               const statusColor = status === "Active" ? "text-green-400" : "text-red-400"
+              const vaultId = vault.data?.objectId || ""
 
               // Extract coin balances
               const peggedVault = fields.pegged_vault?.fields
@@ -526,17 +579,22 @@ export default function VaultList() {
               // Check if user has DS tokens for this vault
               const hasRequiredTokens = userTokens.dsTokens.length > 0 && userTokens.peggedTokens.length > 0
 
+              // Get loading states for this vault
+              const vaultLoadingStates = loadingStates[vaultId] || { redeemDepegSwap: false, redeemUnderwriter: false }
+
               return (
-                <Card key={vault.data?.objectId} className="bg-gray-900 border-gray-800">
+                <Card key={vaultId} className="bg-gray-900 border-gray-800">
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-center">
-                      <CardTitle className="text-lg font-semibold">Vault ID: {vault.data?.objectId}</CardTitle>
+                      <CardTitle className="text-lg font-semibold break-all">
+                        Vault ID: {truncateText(vaultId, 30)}
+                      </CardTitle>
                       <span className={`text-sm ${statusColor}`}>{status}</span>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="text-sm space-y-1">
-                      <p>Type: {vault.data?.type}</p>
+                      <p className="break-all">Type: {truncateText(vault.data?.type || "", 80)}</p>
                       <p>Total DS: {formatBalance(fields.total_ds)}</p>
                       <p>Expiry: {new Date(Number(fields.expiry)).toLocaleString()}</p>
                     </div>
@@ -560,20 +618,27 @@ export default function VaultList() {
                             type="text"
                             placeholder="Amount of DS tokens to redeem (must be divisible by 100)"
                             className="bg-gray-800 border-gray-700"
-                            value={redeemInput.vaultId === vault.data?.objectId ? redeemInput.amount : ""}
+                            value={redeemInput.vaultId === vaultId ? redeemInput.amount : ""}
                             onChange={(e: ChangeEvent<HTMLInputElement>) =>
                               setRedeemInput({
-                                vaultId: vault.data?.objectId || "",
+                                vaultId: vaultId,
                                 amount: e.target.value,
                               })
                             }
                           />
                           <Button
                             onClick={() => handleRedeemDepegSwap(vault)}
-                            disabled={isTransactionPending || !redeemInput.amount}
+                            disabled={vaultLoadingStates.redeemDepegSwap || !redeemInput.amount}
                             className="w-full bg-blue-600 hover:bg-blue-700"
                           >
-                            {isTransactionPending ? <ClipLoader size={16} /> : "Redeem Depeg Swap"}
+                            {vaultLoadingStates.redeemDepegSwap ? (
+                              <div className="flex items-center">
+                                <ClipLoader size={16} color="#ffffff" className="mr-2" />
+                                Redeeming Depeg Swap...
+                              </div>
+                            ) : (
+                              "Redeem Depeg Swap"
+                            )}
                           </Button>
                         </>
                       )}
@@ -581,10 +646,17 @@ export default function VaultList() {
                       {underwriterCaps?.data && underwriterCaps.data.length > 0 && (
                         <Button
                           onClick={() => handleRedeemUnderlying(vault)}
-                          disabled={isTransactionPending}
+                          disabled={vaultLoadingStates.redeemUnderwriter}
                           className="w-full bg-red-600 hover:bg-red-700"
                         >
-                          {isTransactionPending ? <ClipLoader size={16} /> : "Redeem as Underwriter"}
+                          {vaultLoadingStates.redeemUnderwriter ? (
+                            <div className="flex items-center">
+                              <ClipLoader size={16} color="#ffffff" className="mr-2" />
+                              Redeeming as Underwriter...
+                            </div>
+                          ) : (
+                            "Redeem as Underwriter"
+                          )}
                         </Button>
                       )}
                     </div>

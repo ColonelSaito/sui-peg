@@ -58,6 +58,16 @@ function HedgePage() {
     recipient: "",
   })
 
+  // Add state for forcing refresh
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  // Update the handleVaultCreated function to refresh data
+  const handleVaultCreated = (vaultId: string) => {
+    console.log("Vault created with ID:", vaultId)
+    // Force refresh of all data
+    setRefreshKey((prev) => prev + 1)
+  }
+
   // Query for user's coins
   const { data: userCoins, isPending: isCoinsLoading } = useSuiClientQuery(
     "getAllCoins",
@@ -66,6 +76,8 @@ function HedgePage() {
     },
     {
       enabled: !!currentAccount?.address,
+      // Add refreshKey to force refetch when it changes
+      queryKey: ["getAllCoins", currentAccount?.address, refreshKey],
     },
   )
 
@@ -82,12 +94,6 @@ function HedgePage() {
   const suiCoins = formattedCoins.filter((coin) => coin.type.includes("::underlying_coin::"))
   const sSuiCoins = formattedCoins.filter((coin) => coin.type.includes("::pegged_coin::"))
   const dsTokens = formattedCoins.filter((coin) => coin.type === `${depegSwapPackageId}::vault::VAULT`)
-
-  // Handle vault creation callback
-  const handleVaultCreated = (vaultId: string) => {
-    console.log("Vault created with ID:", vaultId)
-    // You can add additional logic here if needed
-  }
 
   // Handle transferring depeg tokens to another address (P2P insurance)
   const handleTransferDepegTokens = async () => {
