@@ -5,16 +5,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { ClipLoader } from "react-spinners"
 import toast from "react-hot-toast"
 import { Transaction } from "@mysten/sui/transactions"
 import { useCurrentAccount, useSuiClientQuery, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit"
 import { TESTNET_VAULT_REGISTRY_ID, TESTNET_VAULT_TREASURY_ID } from "@/app/src/constants"
 import { useNetworkVariable } from "@/app/src/networkConfig"
+import { Clock, AlertTriangle } from "lucide-react"
 
 interface RedeemInput {
   vaultId: string
   amount: string
+}
+
+interface ManuallyExpiredVaults {
+  [key: string]: boolean
 }
 
 export default function VaultList() {
@@ -28,6 +34,9 @@ export default function VaultList() {
     vaultId: "",
     amount: "",
   })
+
+  // State to track manually expired vaults (for demo purposes)
+  const [manuallyExpiredVaults, setManuallyExpiredVaults] = useState<ManuallyExpiredVaults>({})
 
   // Query for user's coins
   const { data: userCoins, isPending: isCoinsLoading } = useSuiClientQuery(
@@ -106,6 +115,14 @@ export default function VaultList() {
 
   const isLoading = isRegistryPending || (shouldFetchVaults && isVaultsPending) || isCoinsLoading
 
+  // Toggle vault expiry status (for demo purposes)
+  const toggleVaultExpiry = (vaultId: string) => {
+    setManuallyExpiredVaults((prev) => ({
+      ...prev,
+      [vaultId]: !prev[vaultId],
+    }))
+  }
+
   // Handle redeeming depeg swap tokens
   const handleRedeemDepegSwap = async (vault: any) => {
     if (!currentAccount?.address) {
@@ -124,9 +141,14 @@ export default function VaultList() {
       return
     }
 
+    const vaultId = vault.data.objectId
+    const isManuallyExpired = manuallyExpiredVaults[vaultId] || false
     const vaultExpiry = Number(vaultContent.fields.expiry)
-    if (vaultExpiry <= Date.now()) {
-      toast.error("Vault has expired!")
+    const isActuallyExpired = vaultExpiry <= Date.now()
+
+    // Check if vault is expired (either actually or manually for demo)
+    if (isActuallyExpired || isManuallyExpired) {
+      toast.error("Vault has expired! Use 'Redeem as Underwriter' instead.")
       return
     }
 
@@ -285,6 +307,17 @@ export default function VaultList() {
       return
     }
 
+    const vaultId = vault.data.objectId
+    const isManuallyExpired = manuallyExpiredVaults[vaultId] || false
+    const vaultExpiry = Number(vaultContent.fields.expiry)
+    const isActuallyExpired = vaultExpiry <= Date.now()
+
+    // Check if vault is expired (either actually or manually for demo)
+    if (!isActuallyExpired && !isManuallyExpired) {
+      toast.error("Vault is still active! Wait for expiry or toggle the expiry status for demo.")
+      return
+    }
+
     // Extract pegged and underlying coin types from the vault fields
     const peggedType = vaultContent.fields.pegged_vault.type.match(/Coin<(.+)>/)?.[1]
     const underlyingType = vaultContent.fields.underlying_vault.type.match(/Coin<(.+)>/)?.[1]
@@ -358,8 +391,16 @@ export default function VaultList() {
           {vaultObjectsData?.map((vault: any, index: number) => {
             const content = vault.data?.content as any
             const fields = content?.fields || {}
-            const status = Number(fields.expiry) > Date.now() ? "Active" : "Expired"
-            const statusColor = status === "Active" ? "text-green-400" : "text-red-400"
+            const vaultId = vault.data?.objectId
+
+            // Check if vault is expired (either actually or manually for demo)
+            const isManuallyExpired = manuallyExpiredVaults[vaultId] || false
+            const vaultExpiry = Number(fields.expiry)
+            const isActuallyExpired = vaultExpiry <= Date.now()
+            const isExpired = isActuallyExpired || isManuallyExpired
+
+            const status = isExpired ? "Expired" : "Active"
+            const statusColor = isExpired ? "text-red-400" : "text-green-400"
 
             // Extract coin balances
             const peggedVault = fields.pegged_vault?.fields
@@ -386,7 +427,12 @@ export default function VaultList() {
                 <CardHeader className="pb-2">
                   <div className="flex justify-between items-center">
                     <CardTitle className="text-lg">Vault #{index + 1}</CardTitle>
-                    <span className={`text-sm font-medium ${statusColor}`}>{status}</span>
+                    <div className="flex items-center space-x-2">
+                      <span className={`text-sm font-medium ${statusColor}`}>{status}</span>
+                      {isManuallyExpired && !isActuallyExpired && (
+                        <span className="text-xs text-yellow-400">(Demo)</span>
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -417,8 +463,26 @@ export default function VaultList() {
                     <div className="font-medium">{formatBalance(fields.total_ds || "0")}</div>
                   </div>
 
-                  {status === "Active" && hasRequiredTokens && (
+                  {/* Demo toggle for expiry status */}
+                  <div className="flex items-center justify-between bg-gray-800/70 p-3 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <Clock className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm text-gray-300">Demo: Toggle Vault Expiry</span>
+                    </div>
+                    <Switch
+                      checked={isManuallyExpired}
+                      onCheckedChange={() => toggleVaultExpiry(vaultId)}
+                      aria-label="Toggle vault expiry for demo"
+                    />
+                  </div>
+
+                  {/* Conditional rendering based on vault status */}
+                  {!isExpired && hasRequiredTokens && (
                     <div className="space-y-3 pt-2">
+                      <div className="flex items-start space-x-2 text-sm text-yellow-400 mb-2">
+                        <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                        <p>Active vault: Redeem DS tokens to get underlying tokens (hedger)</p>
+                      </div>
                       <Label htmlFor={`redeem-amount-${index}`}>
                         Amount of DS tokens to redeem (must be divisible by 100)
                       </Label>
@@ -454,21 +518,27 @@ export default function VaultList() {
                     </div>
                   )}
 
-                  {hasUnderwriterCap && (
-                    <Button
-                      className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-                      onClick={() => handleRedeemUnderlying(vault)}
-                      disabled={isTransactionPending}
-                    >
-                      {isTransactionPending ? (
-                        <div className="flex items-center">
-                          <ClipLoader size={16} color="#ffffff" className="mr-2" />
-                          Processing...
-                        </div>
-                      ) : (
-                        "Redeem as Underwriter"
-                      )}
-                    </Button>
+                  {isExpired && hasUnderwriterCap && (
+                    <div className="space-y-3 pt-2">
+                      <div className="flex items-start space-x-2 text-sm text-yellow-400 mb-2">
+                        <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                        <p>Expired vault: Redeem underlying tokens as underwriter</p>
+                      </div>
+                      <Button
+                        className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                        onClick={() => handleRedeemUnderlying(vault)}
+                        disabled={isTransactionPending}
+                      >
+                        {isTransactionPending ? (
+                          <div className="flex items-center">
+                            <ClipLoader size={16} color="#ffffff" className="mr-2" />
+                            Processing...
+                          </div>
+                        ) : (
+                          "Redeem as Underwriter"
+                        )}
+                      </Button>
+                    </div>
                   )}
                 </CardContent>
               </Card>
