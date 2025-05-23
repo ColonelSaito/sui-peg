@@ -47,4 +47,4 @@ module test_coins::pegged_coin {
     public fun init_for_testing(ctx: &mut TxContext) {
         init(PEGGED_COIN {}, ctx)
     }
-} 
+}

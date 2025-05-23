@@ -1,65 +1,294 @@
-"use client";
+"use client"
 
-import Link from "next/link";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Link from "next/link"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { ArrowLeft, Info } from "lucide-react"
+import { useState, useEffect } from "react"
+
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { ArrowLeft, Info } from "lucide-react";
+  ConnectButton,
+  SuiClientProvider,
+  WalletProvider,
+  useCurrentAccount,
+  useSuiClientQuery,
+  useSignAndExecuteTransaction,
+  useSuiClient,
+} from "@mysten/dapp-kit"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { Theme } from "@radix-ui/themes"
+import { networkConfig } from "../src/networkConfig"
+import { TESTNET_VAULT_REGISTRY_ID, TESTNET_VAULT_TREASURY_ID } from "../src/constants"
+import { Transaction } from "@mysten/sui/transactions"
+import { useNetworkVariable } from "../src/networkConfig"
+import { Toaster } from "react-hot-toast"
+import toast from "react-hot-toast"
 
-import React from "react";
-import ReactDOM from "react-dom/client";
-import "@mysten/dapp-kit/dist/index.css";
-import "@radix-ui/themes/styles.css";
-
-import { SuiClientProvider, WalletProvider } from "@mysten/dapp-kit";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Theme } from "@radix-ui/themes";
-import { networkConfig } from "../src/networkConfig";
-
-const queryClient = new QueryClient();
+const queryClient = new QueryClient()
 
 export default function HedgePageMain() {
   return (
-    <React.StrictMode>
-      <Theme appearance="dark">
-        <QueryClientProvider client={queryClient}>
-          <SuiClientProvider networks={networkConfig} defaultNetwork="testnet">
-            <WalletProvider autoConnect>
-              <HedgePage />
-            </WalletProvider>
-          </SuiClientProvider>
-        </QueryClientProvider>
-      </Theme>
-    </React.StrictMode>
-  );
+    <QueryClientProvider client={queryClient}>
+      <SuiClientProvider networks={networkConfig} defaultNetwork="testnet">
+        <WalletProvider autoConnect>
+          <Theme appearance="dark">
+            <Toaster position="top-right" />
+            <HedgePage />
+          </Theme>
+        </WalletProvider>
+      </SuiClientProvider>
+    </QueryClientProvider>
+  )
 }
 
 function HedgePage() {
+  const currentAccount = useCurrentAccount()
+  const depegSwapPackageId = useNetworkVariable("depegSwapPackageId")
+  const suiClient = useSuiClient()
+  const { mutate: signAndExecute, isPending: isTransactionPending } = useSignAndExecuteTransaction()
+
+  // State for form inputs
+  const [suiAmount, setSuiAmount] = useState("")
+  const [sSuiAmount, setSSuiAmount] = useState("")
+  const [depegTokens, setDepegTokens] = useState("")
+  const [usdcAmount, setUsdcAmount] = useState("")
+
+  // Query for user's coins
+  const { data: userCoins, isPending: isCoinsLoading } = useSuiClientQuery(
+    "getAllCoins",
+    {
+      owner: currentAccount?.address || "",
+    },
+    {
+      enabled: !!currentAccount?.address,
+    },
+  )
+
+  // Query for the vault registry to get vaults
+  const { data: registryData, isPending: isRegistryPending } = useSuiClientQuery(
+    "getObject",
+    {
+      id: TESTNET_VAULT_REGISTRY_ID,
+      options: { showContent: true },
+    },
+    {
+      enabled: !!currentAccount?.address,
+    },
+  )
+
+  // Get vault IDs from registry
+  const registryContent = registryData?.data?.content as any
+  const vaultIds = registryContent?.fields?.vaults || []
+
+  // Query the actual vault objects
+  const { data: vaultObjectsData, isPending: isVaultsPending } = useSuiClientQuery(
+    "multiGetObjects",
+    {
+      ids: vaultIds,
+      options: {
+        showContent: true,
+        showType: true,
+        showOwner: true,
+      },
+    },
+    {
+      enabled: !!vaultIds.length && !!currentAccount?.address,
+    },
+  )
+
+  // Format coins for display
+  const formattedCoins =
+    userCoins?.data?.map((coin) => ({
+      id: coin.coinObjectId,
+      type: coin.coinType,
+      balance: formatBalance(coin.balance, 9),
+      rawBalance: coin.balance,
+    })) || []
+
+  // Find SUI and sSUI coins
+  const suiCoins = formattedCoins.filter((coin) => coin.type.includes("::underlying_coin::"))
+  const sSuiCoins = formattedCoins.filter((coin) => coin.type.includes("::pegged_coin::"))
+  const dsTokens = formattedCoins.filter((coin) => coin.type === `${depegSwapPackageId}::vault::VAULT`)
+
+  // Calculate potential profit based on input
+  useEffect(() => {
+    if (suiAmount && sSuiAmount) {
+      // Simple calculation: 1% of supplied amount
+      const amount = Number.parseFloat(suiAmount)
+      if (!isNaN(amount)) {
+        const profit = (amount * 0.01).toFixed(2)
+        document.getElementById("potential-profit")!.textContent = `${profit} USDC`
+
+        // Calculate depeg tokens (100 per SUI)
+        const tokens = (amount * 100).toFixed(0)
+        document.getElementById("depeg-tokens-receive")!.textContent = `${tokens} SUI Depeg Tokens`
+      }
+    }
+  }, [suiAmount, sSuiAmount])
+
+  // Calculate protection amount based on depeg tokens
+  useEffect(() => {
+    if (depegTokens) {
+      const tokens = Number.parseFloat(depegTokens)
+      if (!isNaN(tokens)) {
+        // Each token protects 0.01 SUI
+        const protection = (tokens * 0.01).toFixed(2)
+        document.getElementById("protection-amount")!.textContent = `${protection} SUI`
+
+        // Calculate required sSUI (1:1 with protection)
+        const required = (tokens * 0.01).toFixed(2)
+        document.getElementById("ssui-required")!.textContent = `${required} sSUI`
+
+        // Calculate USDC cost (0.01 USDC per token)
+        const cost = (tokens * 0.01).toFixed(2)
+        setUsdcAmount(cost)
+      }
+    }
+  }, [depegTokens])
+
+  // Handle creating a vault (underwriter)
+  const handleCreateVault = async () => {
+    if (!currentAccount?.address) {
+      toast.error("Please connect your wallet first!")
+      return
+    }
+
+    if (!suiAmount || !sSuiAmount || Number.parseFloat(suiAmount) <= 0 || Number.parseFloat(sSuiAmount) <= 0) {
+      toast.error("Please enter valid amounts for both SUI and sSUI")
+      return
+    }
+
+    // Check if amounts are equal
+    if (suiAmount !== sSuiAmount) {
+      toast.error("SUI and sSUI amounts must be equal")
+      return
+    }
+
+    // Find suitable coins
+    const suiCoin = suiCoins.find((coin) => Number.parseFloat(coin.balance) >= Number.parseFloat(suiAmount))
+    const sSuiCoin = sSuiCoins.find((coin) => Number.parseFloat(coin.balance) >= Number.parseFloat(sSuiAmount))
+
+    if (!suiCoin) {
+      toast.error("Insufficient SUI balance")
+      return
+    }
+
+    if (!sSuiCoin) {
+      toast.error("Insufficient sSUI balance")
+      return
+    }
+
+    try {
+      // Convert to on-chain amounts
+      const suiAmountOnChain = parseInputAmount(suiAmount, 9).toString()
+      const sSuiAmountOnChain = parseInputAmount(sSuiAmount, 9).toString()
+
+      // Set expiry to 24 hours from now
+      const expiryMs = Date.now() + 24 * 60 * 60 * 1000
+
+      const tx = new Transaction()
+
+      // Split the coins
+      const [splitPeggedCoin] = tx.splitCoins(tx.object(sSuiCoin.id), [tx.pure.u64(sSuiAmountOnChain)])
+
+      const [splitUnderlyingCoin] = tx.splitCoins(tx.object(suiCoin.id), [tx.pure.u64(suiAmountOnChain)])
+
+      // Create vault with split coins
+      tx.moveCall({
+        target: `${depegSwapPackageId}::registry::create_vault_collection`,
+        typeArguments: [sSuiCoin.type, suiCoin.type],
+        arguments: [
+          tx.object(TESTNET_VAULT_REGISTRY_ID),
+          tx.object(TESTNET_VAULT_TREASURY_ID),
+          splitPeggedCoin,
+          splitUnderlyingCoin,
+          tx.pure.u64(expiryMs.toString()),
+          tx.object("0x6"),
+        ],
+      })
+
+      signAndExecute(
+        {
+          transaction: tx,
+        },
+        {
+          onSuccess: async ({ digest }) => {
+            const { effects } = await suiClient.waitForTransaction({
+              digest: digest,
+              options: {
+                showEffects: true,
+              },
+            })
+
+            if (effects?.status?.error) {
+              toast.error(`Transaction failed: ${effects.status.error}`)
+              return
+            }
+
+            toast.success(
+              <div>
+                <div>Successfully created vault!</div>
+                <a
+                  href={`https://suiexplorer.com/txblock/${digest}?network=testnet`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "#0066cc", textDecoration: "underline" }}
+                >
+                  View transaction
+                </a>
+              </div>,
+            )
+
+            // Reset form
+            setSuiAmount("")
+            setSSuiAmount("")
+          },
+          onError: (error) => {
+            toast.error(`Transaction error: ${error instanceof Error ? error.message : "Unknown error"}`)
+          },
+        },
+      )
+    } catch (error) {
+      toast.error(`Error: ${error instanceof Error ? error.message : "Unknown error"}`)
+    }
+  }
+
+  // Handle buying insurance (hedger)
+  const handleBuyInsurance = async () => {
+    if (!currentAccount?.address) {
+      toast.error("Please connect your wallet first!")
+      return
+    }
+
+    if (!depegTokens || Number.parseFloat(depegTokens) <= 0) {
+      toast.error("Please enter a valid amount of depeg tokens to buy")
+      return
+    }
+
+    // For this demo, we'll just show a success message
+    // In a real implementation, this would interact with the blockchain
+    toast.success("Insurance purchase functionality coming soon!")
+  }
+
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="container px-4 py-8 mx-auto">
-        <Link
-          href="/"
-          className="inline-flex items-center text-gray-400 hover:text-white mb-8"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Home
-        </Link>
+        <div className="flex justify-between items-center mb-8">
+          <Link href="/" className="inline-flex items-center text-gray-400 hover:text-white">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Home
+          </Link>
+
+          <ConnectButton />
+        </div>
 
         <div className="max-w-4xl mx-auto">
           <h1 className="text-3xl font-bold mb-2">SUI Depeg Vault</h1>
           <p className="text-gray-400 mb-8">
-            Participate as an underwriter or hedger in the SUI depeg insurance
-            market
+            Participate as an underwriter or hedger in the SUI depeg insurance market
           </p>
 
           <Tabs defaultValue="underwriter" className="w-full">
@@ -72,25 +301,22 @@ function HedgePage() {
               <Card className="bg-gray-900 border-gray-800">
                 <CardHeader>
                   <CardTitle>Become an Underwriter</CardTitle>
-                  <CardDescription>
-                    Supply tokens to the vault and earn premiums from hedgers
-                  </CardDescription>
+                  <CardDescription>Supply tokens to the vault and earn premiums from hedgers</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700 mb-6">
                     <div className="flex items-start gap-2 mb-4">
                       <Info className="h-5 w-5 text-blue-400 mt-0.5 flex-shrink-0" />
                       <p className="text-sm text-gray-300">
-                        As an underwriter, you supply both SUI and sSUI tokens
-                        to the vault. In return, you'll receive depeg tokens
-                        that you can sell to hedgers. After maturity, you can
-                        claim all remaining tokens in the vault.
+                        As an underwriter, you supply both SUI and sSUI tokens to the vault. In return, you'll receive
+                        depeg tokens that you can sell to hedgers. After maturity, you can claim all remaining tokens in
+                        the vault.
                       </p>
                     </div>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="bg-gray-800 p-3 rounded-lg">
                         <span className="text-gray-400">Maturity Date:</span>
-                        <div className="font-medium">June 30, 2025</div>
+                        <div className="font-medium">24 hours from creation</div>
                       </div>
                       <div className="bg-gray-800 p-3 rounded-lg">
                         <span className="text-gray-400">Depeg Threshold:</span>
@@ -116,7 +342,12 @@ function HedgePage() {
                           type="number"
                           placeholder="0.0"
                           className="bg-gray-800 border-gray-700"
+                          value={suiAmount}
+                          onChange={(e) => setSuiAmount(e.target.value)}
                         />
+                        {suiCoins.length > 0 && (
+                          <div className="text-xs text-gray-400 mt-1">Available: {suiCoins[0]?.balance || "0"} SUI</div>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="ssui-amount">sSUI Amount</Label>
@@ -125,18 +356,27 @@ function HedgePage() {
                           type="number"
                           placeholder="0.0"
                           className="bg-gray-800 border-gray-700"
+                          value={sSuiAmount}
+                          onChange={(e) => setSSuiAmount(e.target.value)}
                         />
+                        {sSuiCoins.length > 0 && (
+                          <div className="text-xs text-gray-400 mt-1">
+                            Available: {sSuiCoins[0]?.balance || "0"} sSUI
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     <div className="pt-4 pb-2">
                       <div className="flex justify-between text-sm mb-1">
                         <span className="text-gray-400">You will receive:</span>
-                        <span className="font-medium">0 SUI Depeg Tokens</span>
+                        <span className="font-medium" id="depeg-tokens-receive">
+                          0 SUI Depeg Tokens
+                        </span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-400">Potential profit:</span>
-                        <span className="font-medium text-green-400">
+                        <span className="font-medium text-green-400" id="potential-profit">
                           0 USDC
                         </span>
                       </div>
@@ -144,8 +384,12 @@ function HedgePage() {
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
-                    Supply Tokens
+                  <Button
+                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                    onClick={handleCreateVault}
+                    disabled={isTransactionPending || !currentAccount}
+                  >
+                    {isTransactionPending ? "Processing..." : "Supply Tokens"}
                   </Button>
                 </CardFooter>
               </Card>
@@ -155,25 +399,22 @@ function HedgePage() {
               <Card className="bg-gray-900 border-gray-800">
                 <CardHeader>
                   <CardTitle>Hedge Your Position</CardTitle>
-                  <CardDescription>
-                    Protect your sSUI holdings from depeg events
-                  </CardDescription>
+                  <CardDescription>Protect your sSUI holdings from depeg events</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700 mb-6">
                     <div className="flex items-start gap-2 mb-4">
                       <Info className="h-5 w-5 text-blue-400 mt-0.5 flex-shrink-0" />
                       <p className="text-sm text-gray-300">
-                        As a hedger, you purchase SUI depeg tokens to protect
-                        your sSUI position. If a depeg event occurs before
-                        maturity, you can redeem your depeg tokens for the
-                        underlying SUI, protecting your position from losses.
+                        As a hedger, you purchase SUI depeg tokens to protect your sSUI position. If a depeg event
+                        occurs before maturity, you can redeem your depeg tokens for the underlying SUI, protecting your
+                        position from losses.
                       </p>
                     </div>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="bg-gray-800 p-3 rounded-lg">
-                        <span className="text-gray-400">Maturity Date:</span>
-                        <div className="font-medium">June 30, 2025</div>
+                        <span className="text-gray-400">Available Vaults:</span>
+                        <div className="font-medium">{vaultIds.length || 0}</div>
                       </div>
                       <div className="bg-gray-800 p-3 rounded-lg">
                         <span className="text-gray-400">Depeg Threshold:</span>
@@ -193,15 +434,20 @@ function HedgePage() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
-                        <Label htmlFor="depeg-tokens">
-                          SUI Depeg Tokens to Buy
-                        </Label>
+                        <Label htmlFor="depeg-tokens">SUI Depeg Tokens to Buy</Label>
                         <Input
                           id="depeg-tokens"
                           type="number"
                           placeholder="0"
                           className="bg-gray-800 border-gray-700"
+                          value={depegTokens}
+                          onChange={(e) => setDepegTokens(e.target.value)}
                         />
+                        {dsTokens.length > 0 && (
+                          <div className="text-xs text-gray-400 mt-1">
+                            Available: {dsTokens[0]?.balance || "0"} DS Tokens
+                          </div>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="usdc-amount">USDC Amount</Label>
@@ -210,6 +456,7 @@ function HedgePage() {
                           type="number"
                           placeholder="0.0"
                           className="bg-gray-800 border-gray-700"
+                          value={usdcAmount}
                           disabled
                         />
                       </div>
@@ -218,13 +465,13 @@ function HedgePage() {
                     <div className="pt-4 pb-2">
                       <div className="flex justify-between text-sm mb-1">
                         <span className="text-gray-400">sSUI Required:</span>
-                        <span className="font-medium">0 sSUI</span>
+                        <span className="font-medium" id="ssui-required">
+                          0 sSUI
+                        </span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-400">
-                          Protection Amount:
-                        </span>
-                        <span className="font-medium text-green-400">
+                        <span className="text-gray-400">Protection Amount:</span>
+                        <span className="font-medium text-green-400" id="protection-amount">
                           0 SUI
                         </span>
                       </div>
@@ -232,8 +479,12 @@ function HedgePage() {
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700">
-                    Buy Insurance
+                  <Button
+                    className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
+                    onClick={handleBuyInsurance}
+                    disabled={isTransactionPending || !currentAccount}
+                  >
+                    {isTransactionPending ? "Processing..." : "Buy Insurance"}
                   </Button>
                 </CardFooter>
               </Card>
@@ -242,31 +493,64 @@ function HedgePage() {
 
           <div className="mt-12 bg-gray-800/30 border border-gray-700 rounded-lg p-6">
             <h3 className="text-xl font-semibold mb-4">Current Vault Status</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-gray-800 p-4 rounded-lg">
-                <div className="text-sm text-gray-400 mb-1">Total SUI</div>
-                <div className="text-xl font-medium">1,250.00</div>
-              </div>
-              <div className="bg-gray-800 p-4 rounded-lg">
-                <div className="text-sm text-gray-400 mb-1">Total sSUI</div>
-                <div className="text-xl font-medium">1,250.00</div>
-              </div>
-              <div className="bg-gray-800 p-4 rounded-lg">
-                <div className="text-sm text-gray-400 mb-1">
-                  Depeg Tokens Issued
+            {isRegistryPending || isVaultsPending ? (
+              <div className="text-center py-4">Loading vault data...</div>
+            ) : vaultIds.length === 0 ? (
+              <div className="text-center py-4">No vaults found. Create one to get started!</div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-gray-800 p-4 rounded-lg">
+                  <div className="text-sm text-gray-400 mb-1">Total Vaults</div>
+                  <div className="text-xl font-medium">{vaultIds.length}</div>
                 </div>
-                <div className="text-xl font-medium">125,000</div>
-              </div>
-              <div className="bg-gray-800 p-4 rounded-lg">
-                <div className="text-sm text-gray-400 mb-1">
-                  Insurance Premium
+                <div className="bg-gray-800 p-4 rounded-lg">
+                  <div className="text-sm text-gray-400 mb-1">Your DS Tokens</div>
+                  <div className="text-xl font-medium">{dsTokens.length > 0 ? dsTokens[0].balance : "0"}</div>
                 </div>
-                <div className="text-xl font-medium">0.01 USDC</div>
+                <div className="bg-gray-800 p-4 rounded-lg">
+                  <div className="text-sm text-gray-400 mb-1">Active Vaults</div>
+                  <div className="text-xl font-medium">
+                    {vaultObjectsData?.filter((v: any) => v.data?.content?.fields?.expiry > Date.now()).length || 0}
+                  </div>
+                </div>
+                <div className="bg-gray-800 p-4 rounded-lg">
+                  <div className="text-sm text-gray-400 mb-1">Insurance Premium</div>
+                  <div className="text-xl font-medium">0.01 USDC</div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
     </div>
-  );
+  )
+}
+
+// Helper functions
+function formatBalance(balance: string, decimals = 9): string {
+  const value = BigInt(balance)
+  const divisor = BigInt(10 ** decimals)
+  const integerPart = value / divisor
+  const fractionalPart = value % divisor
+  const paddedFractional = fractionalPart.toString().padStart(decimals, "0")
+  return `${integerPart}.${paddedFractional.substring(0, 4)}`
+}
+
+function parseInputAmount(amount: string, decimals: number): bigint {
+  // Remove any commas
+  amount = amount.replace(/,/g, "")
+
+  // Split on decimal point
+  const parts = amount.split(".")
+  const integerPart = parts[0]
+  const fractionalPart = parts[1] || ""
+
+  // Pad or truncate fractional part to match decimals
+  const normalizedFractional = fractionalPart.padEnd(decimals, "0").slice(0, decimals)
+
+  // Combine integer and fractional parts
+  const fullValue = `${integerPart}${normalizedFractional}`
+
+  // Convert to BigInt, removing any leading zeros
+  return BigInt(fullValue.replace(/^0+/, "") || "0")
 }

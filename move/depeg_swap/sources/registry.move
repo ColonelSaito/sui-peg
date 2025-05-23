@@ -60,4 +60,4 @@ module depeg_swap::registry {
     public fun init_for_testing(ctx: &mut TxContext) {
         init(REGISTRY {}, ctx)
     }
-} 
+}
