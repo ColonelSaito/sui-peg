@@ -1,10 +1,9 @@
 "use client"
 
-import { useState, useMemo, type ChangeEvent } from "react"
+import { useMemo, useState, type ChangeEvent } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Switch } from "@/components/ui/switch"
 import { ClipLoader } from "react-spinners"
 import toast from "react-hot-toast"
 import { Transaction } from "@mysten/sui/transactions"
@@ -46,10 +45,6 @@ interface RedeemInput {
   amount: string
 }
 
-interface ManuallyExpiredVaults {
-  [key: string]: boolean
-}
-
 export default function VaultList() {
   const currentAccount = useCurrentAccount()
   const depegSwapPackageId = useNetworkVariable("depegSwapPackageId")
@@ -60,9 +55,6 @@ export default function VaultList() {
     vaultId: "",
     amount: "",
   })
-
-  // State to track manually expired vaults (for demo purposes)
-  const [manuallyExpiredVaults, setManuallyExpiredVaults] = useState<ManuallyExpiredVaults>({})
 
   // Query for UnderwriterCap objects owned by the current user
   const { data: underwriterCaps } = useSuiClientQuery(
@@ -153,14 +145,6 @@ export default function VaultList() {
   const isLoading = isRegistryPending || (shouldFetchVaults && isVaultsPending)
   const error = registryError || vaultsError
 
-  // Toggle vault expiry status (for demo purposes)
-  const toggleVaultExpiry = (vaultId: string) => {
-    setManuallyExpiredVaults((prev) => ({
-      ...prev,
-      [vaultId]: !prev[vaultId],
-    }))
-  }
-
   const handleRedeemDepegSwap = async (vault: SuiObjectResponse) => {
     if (!currentAccount?.address) {
       toast.error("Please connect your wallet first!")
@@ -178,13 +162,8 @@ export default function VaultList() {
       return
     }
 
-    const vaultId = vault.data.objectId
-    const isManuallyExpired = manuallyExpiredVaults[vaultId] || false
     const vaultExpiry = Number(vaultContent.fields.expiry)
-    const isActuallyExpired = vaultExpiry <= Date.now()
-
-    // Check if vault is expired (either actually or manually for demo)
-    if (isActuallyExpired || isManuallyExpired) {
+    if (vaultExpiry <= Date.now()) {
       toast.error("Vault has expired!")
       return
     }
@@ -272,6 +251,14 @@ export default function VaultList() {
         tx.pure.u64(requiredPeggedAmount.toString()),
       ])
 
+      console.log("Transaction input", {
+        vaultId: vault.data.objectId,
+        treasuryId: TESTNET_VAULT_TREASURY_ID,
+        clockId: "0x6",
+        splitDsToken,
+        splitPeggedToken,
+      })
+
       const [underlying_coin] = tx.moveCall({
         target: `${depegSwapPackageId}::vault::redeem_depeg_swap`,
         typeArguments: [peggedType, underlyingType],
@@ -282,6 +269,10 @@ export default function VaultList() {
           splitPeggedToken,
           tx.object("0x6"),
         ],
+      })
+
+      console.log("Transaction output", {
+        underlying_coin,
       })
 
       tx.transferObjects([underlying_coin, splitPeggedToken, splitDsToken], currentAccount.address)
@@ -299,7 +290,7 @@ export default function VaultList() {
               <div>
                 <div>Successfully redeemed Depeg Swap tokens!</div>
                 <a
-                  href={`https://suiexplorer.com/txblock/${result.digest}?network=testnet`}
+                  href={`https://suiscan.xyz/testnet/tx/${result.digest}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ color: "#0066cc", textDecoration: "underline" }}
@@ -385,6 +376,12 @@ export default function VaultList() {
       return
     }
 
+    console.log("Transaction input", {
+      vaultId: vault.data.objectId,
+      underwriterCapId: underwriterCaps.data[0].data.objectId,
+      clockId: "0x6",
+    })
+
     const tx = new Transaction()
 
     try {
@@ -407,7 +404,7 @@ export default function VaultList() {
               <div>
                 <div>Successfully redeemed underlying coins!</div>
                 <a
-                  href={`https://suiexplorer.com/txblock/${result.digest}?network=testnet`}
+                  href={`https://suivision.xyz/txblock/${result.digest}?network=testnet`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ color: "#0066cc", textDecoration: "underline" }}
@@ -469,9 +466,9 @@ export default function VaultList() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="flex justify-center items-center py-8">
-          <ClipLoader size={30} color="#6366f1" />
-          <span className="ml-2">Loading vaults...</span>
+        <div className="flex items-center gap-2">
+          <ClipLoader size={20} />
+          <span>Loading vaults...</span>
         </div>
       </div>
     )
@@ -480,152 +477,124 @@ export default function VaultList() {
   if (!vaultIds.length) {
     return (
       <div className="space-y-6">
-        <div className="bg-gray-800/50 rounded-lg p-6 text-center">
-          <p>No vaults found. Create one to get started!</p>
-        </div>
+        <p>No vaults found. Create one to get started!</p>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      <h3 className="text-xl font-semibold">Created Vaults</h3>
+      <div className="space-y-3">
+        <h3 className="text-xl font-semibold">Created Vaults</h3>
 
-      {registryData && (
-        <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="p-4">
-            <div className="space-y-2 text-sm">
-              <p>Registry ID: {TESTNET_VAULT_REGISTRY_ID}</p>
-              <p>Type: {registryData.data?.type}</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+        {registryData && (
+          <Card className="bg-gray-900 border-gray-800">
+            <CardContent className="p-4">
+              <div className="space-y-2">
+                <p className="text-sm">Registry ID: {TESTNET_VAULT_REGISTRY_ID}</p>
+                <p className="text-sm">Type: {registryData.data?.type}</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-      {vaultObjectsData && vaultObjectsData.length > 0 && (
-        <div className="space-y-4">
-          <h4 className="text-lg font-semibold">Vaults</h4>
-          {vaultObjectsData.map((vault: SuiObjectResponse, index: number) => {
-            const content = vault.data?.content as any
-            const fields = content?.fields || {}
-            const vaultId = vault.data?.objectId
+        {vaultObjectsData && vaultObjectsData.length > 0 && (
+          <div className="space-y-3">
+            <h4 className="text-lg font-semibold">Vaults</h4>
+            {vaultObjectsData.map((vault: SuiObjectResponse) => {
+              const content = vault.data?.content as any
+              const fields = content?.fields || {}
+              const status = Number(fields.expiry) > Date.now() ? "Active" : "Expired"
+              const statusColor = status === "Active" ? "text-green-400" : "text-red-400"
 
-            // Check if vault is expired (either actually or manually for demo)
-            const isManuallyExpired = manuallyExpiredVaults[vaultId] || false
-            const vaultExpiry = Number(fields.expiry)
-            const isActuallyExpired = vaultExpiry <= Date.now()
-            const isExpired = isActuallyExpired || isManuallyExpired
+              // Extract coin balances
+              const peggedVault = fields.pegged_vault?.fields
+              const underlyingVault = fields.underlying_vault?.fields
 
-            const status = isExpired ? "Expired" : "Active"
-            const statusColor = isExpired ? "text-red-400" : "text-green-400"
+              // Get coin types from the vault fields
+              const peggedType =
+                peggedVault?.type
+                  ?.match(/Coin<(.+)>/)?.[1]
+                  ?.split("::")
+                  .pop() || "Unknown"
+              const underlyingType =
+                underlyingVault?.type
+                  ?.match(/Coin<(.+)>/)?.[1]
+                  ?.split("::")
+                  .pop() || "Unknown"
 
-            // Extract coin balances
-            const peggedVault = fields.pegged_vault?.fields
-            const underlyingVault = fields.underlying_vault?.fields
+              // Check if user has DS tokens for this vault
+              const hasRequiredTokens = userTokens.dsTokens.length > 0 && userTokens.peggedTokens.length > 0
 
-            // Get coin types from the vault fields
-            const peggedType =
-              peggedVault?.type
-                ?.match(/Coin<(.+)>/)?.[1]
-                ?.split("::")
-                .pop() || "Unknown"
-            const underlyingType =
-              underlyingVault?.type
-                ?.match(/Coin<(.+)>/)?.[1]
-                ?.split("::")
-                .pop() || "Unknown"
-
-            // Check if user has DS tokens for this vault
-            const hasRequiredTokens = userTokens.dsTokens.length > 0 && userTokens.peggedTokens.length > 0
-
-            return (
-              <Card key={vault.data?.objectId} className="bg-gray-900 border-gray-800">
-                <CardHeader className="pb-2">
-                  <div className="flex justify-between items-center">
-                    <CardTitle className="text-lg">Vault ID: {vault.data?.objectId}</CardTitle>
-                    <span className={`text-sm font-medium ${statusColor}`}>{status}</span>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="text-sm space-y-1">
-                    <p>Type: {vault.data?.type}</p>
-                    <p>Total DS: {formatBalance(fields.total_ds)}</p>
-                    <p>Expiry: {new Date(Number(fields.expiry)).toLocaleString()}</p>
-                  </div>
-
-                  <div className="bg-gray-800/50 p-3 rounded-lg">
-                    <h5 className="text-sm font-semibold mb-2">Vault Contents:</h5>
-                    <div className="space-y-1 text-sm">
-                      <p>
-                        Pegged Coin ({peggedType}): {formatBalance(peggedVault?.balance || "0")}
-                      </p>
-                      <p>
-                        Underlying Coin ({underlyingType}): {formatBalance(underlyingVault?.balance || "0")}
-                      </p>
+              return (
+                <Card key={vault.data?.objectId} className="bg-gray-900 border-gray-800">
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-center">
+                      <CardTitle className="text-lg font-semibold">Vault ID: {vault.data?.objectId}</CardTitle>
+                      <span className={`text-sm ${statusColor}`}>{status}</span>
                     </div>
-                  </div>
-
-                  {/* Toggle for active vaults only */}
-                  {!isActuallyExpired && (
-                    <div className="flex items-center justify-between bg-gray-800/50 p-3 rounded-lg">
-                      <span className="text-sm">Set to Expired</span>
-                      <Switch checked={isManuallyExpired} onCheckedChange={() => toggleVaultExpiry(vaultId)} />
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="text-sm space-y-1">
+                      <p>Type: {vault.data?.type}</p>
+                      <p>Total DS: {formatBalance(fields.total_ds)}</p>
+                      <p>Expiry: {new Date(Number(fields.expiry)).toLocaleString()}</p>
                     </div>
-                  )}
 
-                  <div className="space-y-3">
-                    {/* Conditional rendering based on vault status */}
-                    {!isExpired && hasRequiredTokens && (
-                      <>
-                        <Input
-                          type="text"
-                          placeholder="Amount of DS tokens to redeem (must be divisible by 100)"
-                          className="bg-gray-800 border-gray-700"
-                          value={redeemInput.vaultId === vault.data?.objectId ? redeemInput.amount : ""}
-                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                            setRedeemInput({
-                              vaultId: vault.data?.objectId || "",
-                              amount: e.target.value,
-                            })
-                          }
-                        />
+                    <div className="space-y-2">
+                      <h5 className="text-sm font-semibold">Vault Contents:</h5>
+                      <div className="bg-gray-800/50 p-3 rounded-lg space-y-1 text-sm">
+                        <p>
+                          Pegged Coin ({peggedType}): {formatBalance(peggedVault?.balance || "0")}
+                        </p>
+                        <p>
+                          Underlying Coin ({underlyingType}): {formatBalance(underlyingVault?.balance || "0")}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      {status === "Active" && hasRequiredTokens && (
+                        <>
+                          <Input
+                            type="text"
+                            placeholder="Amount of DS tokens to redeem (must be divisible by 100)"
+                            className="bg-gray-800 border-gray-700"
+                            value={redeemInput.vaultId === vault.data?.objectId ? redeemInput.amount : ""}
+                            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                              setRedeemInput({
+                                vaultId: vault.data?.objectId || "",
+                                amount: e.target.value,
+                              })
+                            }
+                          />
+                          <Button
+                            onClick={() => handleRedeemDepegSwap(vault)}
+                            disabled={isTransactionPending || !redeemInput.amount}
+                            className="w-full bg-blue-600 hover:bg-blue-700"
+                          >
+                            {isTransactionPending ? <ClipLoader size={16} /> : "Redeem Depeg Swap"}
+                          </Button>
+                        </>
+                      )}
+
+                      {underwriterCaps?.data && underwriterCaps.data.length > 0 && (
                         <Button
-                          onClick={() => handleRedeemDepegSwap(vault)}
-                          disabled={
-                            isTransactionPending || !redeemInput.amount || redeemInput.vaultId !== vault.data?.objectId
-                          }
-                          className="w-full bg-blue-600 hover:bg-blue-700"
+                          onClick={() => handleRedeemUnderlying(vault)}
+                          disabled={isTransactionPending}
+                          className="w-full bg-red-600 hover:bg-red-700"
                         >
-                          {isTransactionPending ? (
-                            <ClipLoader size={16} color="#ffffff" className="mr-2" />
-                          ) : (
-                            "Redeem Depeg Swap"
-                          )}
+                          {isTransactionPending ? <ClipLoader size={16} /> : "Redeem as Underwriter"}
                         </Button>
-                      </>
-                    )}
-
-                    {/* Always show the Redeem as Underwriter button if user has UnderwriterCap */}
-                    {underwriterCaps?.data && underwriterCaps.data.length > 0 && (
-                      <Button
-                        onClick={() => handleRedeemUnderlying(vault)}
-                        disabled={isTransactionPending}
-                        className="w-full bg-red-600 hover:bg-red-700"
-                      >
-                        {isTransactionPending ? (
-                          <ClipLoader size={16} color="#ffffff" className="mr-2" />
-                        ) : (
-                          "Redeem as Underwriter"
-                        )}
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
-      )}
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
