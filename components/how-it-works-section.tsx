@@ -12,9 +12,22 @@ export default function HowItWorksSection() {
             Supported Tokens
           </h2>
           <p className="flex justify-center space-x-[200px]">
-            <div className="flex items-center">
-              <img width={220} height={220} src="/wBtc.svg" />
-              <img width={220} height={220} src="/LBTC.svg" />
+            <div
+              className="flex items-center"
+              style={{ transform: "translateX(72px)" }}
+            >
+              <img
+                width={220}
+                height={220}
+                src="/WBTC_new.png"
+                style={{ borderRadius: 200 }}
+              />
+              <img
+                width={280}
+                height={280}
+                src="/lbtc_hahapng.png"
+                style={{ borderRadius: 200, transform: "translateX(-102px)" }}
+              />
             </div>
             <div className="flex items-center">
               <img
@@ -26,7 +39,7 @@ export default function HowItWorksSection() {
               <img
                 width={220}
                 height={220}
-                style={{ borderRadius: 150 }}
+                style={{ borderRadius: 150, transform: "translateX(-52px)" }}
                 src="/sSui.png"
               />
             </div>
