@@ -9,24 +9,6 @@ export default function LandingPage() {
     <div className="min-h-screen bg-black text-white">
       {/* Hero Section */}
       <section className="relative overflow-hidden">
-        <div className="flex">
-          <img width={100} src="favicon.png" />
-          <img width={100} src="favicon.png" />
-          <img width={100} src="favicon.png" />
-          <img width={100} src="favicon.png" />{" "}
-          <img width={100} src="favicon.png" />{" "}
-          <img width={100} src="favicon.png" />{" "}
-          <img width={100} src="favicon.png" />
-          <img width={100} src="favicon.png" />
-          <img width={100} src="favicon.png" />
-          <img width={100} src="favicon.png" />
-          <img width={100} src="favicon.png" />
-          <img width={100} src="favicon.png" />
-          <img width={100} src="favicon.png" />
-          <img width={100} src="favicon.png" />
-          <img width={100} src="favicon.png" />
-        </div>
-
         <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-blue-900/20 to-black z-0" />
         <div className="absolute inset-0 bg-[url('/abstract-digital-grid.png')] bg-cover bg-center opacity-10 z-0" />
         <div className="container relative z-10 px-4 py-24 md:py-32 mx-auto">
