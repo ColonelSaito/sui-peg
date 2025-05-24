@@ -8,6 +8,42 @@ export default function HowItWorksSection() {
     <section className="py-20 bg-black">
       <div className="container px-4 mx-auto">
         <div className="text-center mb-16">
+          <h2 className="text-3xl md:text-4xl font-bold mb-[50px]">
+            Supported Tokens
+          </h2>
+          <p className="flex justify-center space-x-[200px]">
+            <div className="flex items-center">
+              <img
+                width={220}
+                height={220}
+                style={{ borderRadius: 150 }}
+                src="/wBtc.svg"
+              />
+              <img
+                width={220}
+                height={220}
+                style={{ borderRadius: 150 }}
+                src="/LBTC.svg"
+              />
+            </div>
+            <div className="flex items-center">
+              <img
+                width={220}
+                height={220}
+                style={{ borderRadius: 150 }}
+                src="/sui.png"
+              />
+              <img
+                width={220}
+                height={220}
+                style={{ borderRadius: 150 }}
+                src="/sSui.png"
+              />
+            </div>
+          </p>
+        </div>
+
+        <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">How It Works</h2>
           <p className="text-gray-400 max-w-2xl mx-auto">
             Our platform connects underwriters and hedgers to create a market

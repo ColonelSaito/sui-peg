@@ -9,9 +9,26 @@ export default function LandingPage() {
     <div className="min-h-screen bg-black text-white">
       {/* Hero Section */}
       <section className="relative overflow-hidden">
+        <div className="flex">
+          <img width={100} src="favicon.png" />
+          <img width={100} src="favicon.png" />
+          <img width={100} src="favicon.png" />
+          <img width={100} src="favicon.png" />{" "}
+          <img width={100} src="favicon.png" />{" "}
+          <img width={100} src="favicon.png" />{" "}
+          <img width={100} src="favicon.png" />
+          <img width={100} src="favicon.png" />
+          <img width={100} src="favicon.png" />
+          <img width={100} src="favicon.png" />
+          <img width={100} src="favicon.png" />
+          <img width={100} src="favicon.png" />
+          <img width={100} src="favicon.png" />
+          <img width={100} src="favicon.png" />
+          <img width={100} src="favicon.png" />
+        </div>
+
         <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-blue-900/20 to-black z-0" />
         <div className="absolute inset-0 bg-[url('/abstract-digital-grid.png')] bg-cover bg-center opacity-10 z-0" />
-
         <div className="container relative z-10 px-4 py-24 md:py-32 mx-auto">
           <div className="max-w-3xl mx-auto text-center">
             <div className="inline-block px-3 py-1 mb-6 text-sm font-medium text-purple-300 bg-purple-900/30 rounded-full">
@@ -32,7 +49,6 @@ export default function LandingPage() {
             </Link>
           </div>
         </div>
-
         <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black to-transparent"></div>
       </section>
 
