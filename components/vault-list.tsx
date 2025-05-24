@@ -309,10 +309,15 @@ export default function VaultList() {
         return;
       }
 
+      console.log("userTokens.peggedTokens ", userTokens.peggedTokens);
+      console.log("peggedType ", peggedType);
       // Find matching pegged token
-      const matchingPeggedToken = userTokens.peggedTokens.find(
-        (token) => token.coinType === peggedType
-      );
+      // const matchingPeggedToken = userTokens.peggedTokens.find(
+      //   (token) => token.coinType === peggedType
+      // );
+
+      // assuming there is only 1 pegged token
+      const matchingPeggedToken = userTokens.peggedTokens[0];
 
       if (!matchingPeggedToken) {
         toast.error(`You don't have the required pegged token: ${peggedType}`);
@@ -330,6 +335,7 @@ export default function VaultList() {
         return;
       }
 
+      console.log("userTokens ", userTokens);
       // Get DS token and check balance
       const dsToken = userTokens.dsTokens[0]; // Using first DS token for simplicity
       if (BigInt(dsToken.balance) < dsAmountToRedeem) {
@@ -343,6 +349,8 @@ export default function VaultList() {
       }
 
       const tx = new Transaction();
+
+      // tx.setGasBudget('')
 
       // Split DS token to the exact amount needed (with decimals)
       const [splitDsToken] = tx.splitCoins(tx.object(dsToken.coinObjectId), [
@@ -379,11 +387,13 @@ export default function VaultList() {
         underlying_coin,
       });
 
+      console.log();
       tx.transferObjects(
         [underlying_coin, splitPeggedToken, splitDsToken],
         currentAccount.address
       );
 
+      console.log("signAndExecute");
       signAndExecute(
         {
           transaction: tx,

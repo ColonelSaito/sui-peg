@@ -108,14 +108,18 @@ function HedgePage() {
       balance: formatBalance(coin.balance, 9),
       rawBalance: coin.balance,
     })) || [];
+  console.log("userCoins ", userCoins);
+  console.log("formattedCoins ", formattedCoins);
 
   // Find wBTC and LBTC coins
   const suiCoins = formattedCoins.filter((coin) =>
     coin.type.includes("::underlying_coin::")
   );
+  console.log("suiCoins", suiCoins);
   const sSuiCoins = formattedCoins.filter((coin) =>
     coin.type.includes("::pegged_coin::")
   );
+  console.log("sSuiCoins ", sSuiCoins);
   const dsTokens = formattedCoins.filter(
     (coin) => coin.type === `${depegSwapPackageId}::vault::VAULT`
   );
@@ -364,13 +368,27 @@ function HedgePage() {
               <div className="bg-gray-800 p-4 rounded-lg">
                 <div className="text-sm text-gray-400 mb-1">wBTC Balance</div>
                 <div className="text-xl font-medium">
-                  {suiCoins.length > 0 ? suiCoins[0].balance : "0"}
+                  {suiCoins.length > 0
+                    ? suiCoins
+                        .reduce(
+                          (balance, a): any => balance + parseFloat(a.balance),
+                          0
+                        )
+                        .toPrecision(3)
+                    : "0"}
                 </div>
               </div>
               <div className="bg-gray-800 p-4 rounded-lg">
                 <div className="text-sm text-gray-400 mb-1">LBTC Balance</div>
                 <div className="text-xl font-medium">
-                  {sSuiCoins.length > 0 ? sSuiCoins[0].balance : "0"}
+                  {sSuiCoins.length > 0
+                    ? sSuiCoins
+                        .reduce(
+                          (balance, a): any => balance + parseFloat(a.balance),
+                          0
+                        )
+                        .toPrecision(3)
+                    : "0"}
                 </div>
               </div>
               <div className="bg-gray-800 p-4 rounded-lg">
