@@ -1,30 +1,72 @@
-# sui depeg
+# 🌀 Depeg Swap Protocol on Sui
 
-*Automatically synced with your [v0.dev](https://v0.dev) deployments*
+**Depeg Swap** is a fixed-yield, dual-asset vault system designed for the Sui blockchain. it allows underwriter to deposits their underlying and pegged token (i.e. $wBTC and $LBTC) to the vault and mints depeg token (wBTC-depeg token). And Hedger could purchase the depeg token (wBTC-depeg token) to hedge their pegged tokens positions (i.e. $LBTC). 
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/7318377kevintirtagmailcoms-projects/v0-sui-depeg)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/18VAmfzBQ82)
+1. when there is depeg events, hedger could redeem underlying token (i.e. $wBTC) with their pegged token (i.e. $LBTC) and depeg token (i.e. wBTC-depeg token)
+2. when there is no depeg events upon maturity, underwriter could claim underlying tokens from the vault (i.e. $wBTC and $LBTC)
 
-## Overview
 
-This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
+---
 
-## Deployment
+## 📦 Modules Overview
 
-Your project is live at:
+### 1. `depeg_swap::vault`
 
-**[https://vercel.com/7318377kevintirtagmailcoms-projects/v0-sui-depeg](https://vercel.com/7318377kevintirtagmailcoms-projects/v0-sui-depeg)**
+This module handles the core logic of vault creation, token minting, and redemption.
 
-## Build your app
+#### ✅ Key Functions
 
-Continue building your app on:
+##### `init(witness: VAULT, ctx: &mut TxContext)`
+- Initializes the `VAULT` token type and sets up the treasury.
+- Mints the DS (Depeg Swap) token and shares the treasury on-chain.
 
-**[https://v0.dev/chat/projects/18VAmfzBQ82](https://v0.dev/chat/projects/18VAmfzBQ82)**
+##### `create_vault<P, U>(...)`
+- Mints DS tokens backed by equal amounts of a pegged asset and an underlying asset.
 
-## How It Works
+##### `redeem_depeg_swap(...)`
+- Allows users to redeem DS tokens **before expiry**.
+- Burns DS tokens and returns the underlying asset in exchange for the pegged tokens.
 
-1. Create and modify your project using [v0.dev](https://v0.dev)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+##### `redeem_underlying(...)`
+- Allows **underwriters** to claim both underlying and pegged assets **after expiry**.
+
+
+### 2. `depeg_swap::registry`
+
+Manages a global registry of all created vaults.
+
+#### ✅ Key Functions
+
+##### `init(_: REGISTRY, ctx: &mut TxContext)`
+- Initializes and shares the `VaultRegistry` object.
+
+##### `create_vault_collection<P, U>(...)`
+- A wrapper around `vault::create_vault`.
+- Registers the new vault ID into the global registry.
+- Transfers minted DS coins and underwriter caps to the sender.
+
+##### `list_vaults(reg: &VaultRegistry): &vector<ID>`
+- Returns the list of all created vault IDs.
+
+---
+
+## 🛠 Data Structures
+
+### `Vault<P, U>`
+- Stores paired assets (`pegged`, `underlying`), expiry, and DS token total.
+
+### `VaultTreasury`
+- Stores the treasury capability for minting and burning DS tokens.
+
+### `UnderwriterCap`
+- A capability object granting permission to call `redeem_underlying`.
+
+### `VaultRegistry`
+- A shared object tracking all vault IDs.
+
+---
+
+## 👨‍💻 Author
+
+Built by Sui Peg — Soon on Sui.
+
