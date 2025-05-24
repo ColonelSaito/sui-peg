@@ -72,7 +72,7 @@ export default function HowItWorksSection() {
               </p>
               <p className="text-gray-300">
                 For example, by supplying 1 wBTC and 1 LBTC, you receive 100
-                wBTC depeg tokens that you can sell to hedgers.
+                wBTC-depeg tokens that you can sell to hedgers.
               </p>
               <p className="text-gray-300">
                 After maturity, you can claim all remaining pegged tokens and
@@ -99,16 +99,12 @@ export default function HowItWorksSection() {
             <div className="space-y-4 mb-6">
               <p className="text-gray-300">
                 As a hedger, you can protect your LBTC position from depeg
-                events by purchasing wBTC depeg tokens.
-              </p>
-              <p className="text-gray-300">
-                For example, you can buy 1 wBTC depeg token with 0.01 LBTC and 1
-                USDC, providing insurance for your position.
+                events by purchasing wBTC-depeg tokens.
               </p>
               <p className="text-gray-300">
                 Before maturity, if a depeg event occurs, you can redeem wBTC by
-                using your wBTC depeg tokens. For instance, claim 0.01 wBTC with
-                1 wBTC depeg token.
+                using your wBTC-depeg tokens + pegged token. For instance, claim
+                0.01 wBTC with 1 wBTC-depeg token + 0.01 LBTC.
               </p>
             </div>
             <Link href="/hedge">
