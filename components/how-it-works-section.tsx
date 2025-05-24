@@ -13,18 +13,8 @@ export default function HowItWorksSection() {
           </h2>
           <p className="flex justify-center space-x-[200px]">
             <div className="flex items-center">
-              <img
-                width={220}
-                height={220}
-                style={{ borderRadius: 150 }}
-                src="/wBtc.svg"
-              />
-              <img
-                width={220}
-                height={220}
-                style={{ borderRadius: 150 }}
-                src="/LBTC.svg"
-              />
+              <img width={220} height={220} src="/wBtc.svg" />
+              <img width={220} height={220} src="/LBTC.svg" />
             </div>
             <div className="flex items-center">
               <img
