@@ -141,7 +141,7 @@ module depeg_swap::vault {
         clock: &Clock,
         ctx: &mut TxContext
     ): Coin<U> { 
-        // assert!(clock::timestamp_ms(clock) < vault.expiry, E_EXPIRED);
+        assert!(clock::timestamp_ms(clock) < vault.expiry, E_EXPIRED);
 
         let ds_value_to_redeem = coin::value(ds_coins_to_redeem);
         assert!(ds_value_to_redeem > 0, E_BAD_INPUT);
@@ -193,7 +193,7 @@ module depeg_swap::vault {
         ctx: &mut TxContext
     ): (Coin<U>, Coin<P>) {
         let _ = cap;
-        // assert!(clock::timestamp_ms(clock) >= vault.expiry, E_EXPIRED);
+        assert!(clock::timestamp_ms(clock) >= vault.expiry, E_EXPIRED);
 
         let pegged_value = coin::value(&vault.pegged_vault);
         let underlying_value = coin::value(&vault.underlying_vault);
