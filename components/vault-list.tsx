@@ -668,147 +668,153 @@ export default function VaultList() {
         {vaultObjectsData && vaultObjectsData.length > 0 && (
           <div className="space-y-3">
             <h4 className="text-lg font-semibold">Vaults</h4>
-            {vaultObjectsData.map((vault: SuiObjectResponse) => {
-              const content = vault.data?.content as any;
-              const fields = content?.fields || {};
-              const status =
-                Number(fields.expiry) > Date.now() ? "Active" : "Expired";
-              const statusColor =
-                status === "Active" ? "text-green-400" : "text-red-400";
-              const vaultId = vault.data?.objectId || "";
+            {[vaultObjectsData[vaultObjectsData.length - 1]].map(
+              (vault: SuiObjectResponse) => {
+                const content = vault.data?.content as any;
+                const fields = content?.fields || {};
+                const status =
+                  Number(fields.expiry) > Date.now() ? "Active" : "Expired";
+                const statusColor =
+                  status === "Active" ? "text-green-400" : "text-red-400";
+                const vaultId = vault.data?.objectId || "";
 
-              // Extract coin balances
-              const peggedVault = fields.pegged_vault?.fields;
-              const underlyingVault = fields.underlying_vault?.fields;
+                // Extract coin balances
+                const peggedVault = fields.pegged_vault?.fields;
+                const underlyingVault = fields.underlying_vault?.fields;
 
-              // Get coin types from the vault fields
-              const peggedType =
-                peggedVault?.type
-                  ?.match(/Coin<(.+)>/)?.[1]
-                  ?.split("::")
-                  .pop() || "Unknown";
-              const underlyingType =
-                underlyingVault?.type
-                  ?.match(/Coin<(.+)>/)?.[1]
-                  ?.split("::")
-                  .pop() || "Unknown";
+                // Get coin types from the vault fields
+                const peggedType =
+                  peggedVault?.type
+                    ?.match(/Coin<(.+)>/)?.[1]
+                    ?.split("::")
+                    .pop() || "Unknown";
+                const underlyingType =
+                  underlyingVault?.type
+                    ?.match(/Coin<(.+)>/)?.[1]
+                    ?.split("::")
+                    .pop() || "Unknown";
 
-              // Check if user has DS tokens for this vault
-              const hasRequiredTokens =
-                userTokens.dsTokens.length > 0 &&
-                userTokens.peggedTokens.length > 0;
+                // Check if user has DS tokens for this vault
+                const hasRequiredTokens =
+                  userTokens.dsTokens.length > 0 &&
+                  userTokens.peggedTokens.length > 0;
 
-              // Get loading states for this vault
-              const vaultLoadingStates = loadingStates[vaultId] || {
-                redeemDepegSwap: false,
-                redeemUnderwriter: false,
-              };
+                // Get loading states for this vault
+                const vaultLoadingStates = loadingStates[vaultId] || {
+                  redeemDepegSwap: false,
+                  redeemUnderwriter: false,
+                };
 
-              return (
-                <Card key={vaultId} className="bg-gray-900 border-gray-800">
-                  <CardHeader className="p-2">
-                    <div className="flex justify-between items-center">
-                      <CardTitle className="text-lg font-semibold break-all">
-                        Vault ID: {truncateText(vaultId, 30)}
-                      </CardTitle>
-                      <span className={`text-sm ${statusColor}`}>{status}</span>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="text-sm space-y-1">
-                      <p className="break-all">
-                        Type: {truncateText(vault.data?.type || "", 80)}
-                      </p>
-                      <p>Total DS: {formatBalance(fields.total_ds)}</p>
-                      <p>
-                        Expiry:{" "}
-                        {new Date(Number(fields.expiry)).toLocaleString()}
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <h5 className="text-sm font-semibold">Vault Contents:</h5>
-                      <div className="bg-gray-800/50 p-3 rounded-lg space-y-1 text-sm">
-                        <p>
-                          Pegged Coin ({peggedType}):{" "}
-                          {formatBalance(peggedVault?.balance || "0")}
+                return (
+                  <Card key={vaultId} className="bg-gray-900 border-gray-800">
+                    <CardHeader className="p-2">
+                      <div className="flex justify-between items-center">
+                        <CardTitle className="text-lg font-semibold break-all">
+                          Vault ID: {truncateText(vaultId, 30)}
+                        </CardTitle>
+                        <span className={`text-sm ${statusColor}`}>
+                          {status}
+                        </span>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="text-sm space-y-1">
+                        <p className="break-all">
+                          Type: {truncateText(vault.data?.type || "", 80)}
                         </p>
+                        <p>Total DS: {formatBalance(fields.total_ds)}</p>
                         <p>
-                          Underlying Coin ({underlyingType}):{" "}
-                          {formatBalance(underlyingVault?.balance || "0")}
+                          Expiry:{" "}
+                          {new Date(Number(fields.expiry)).toLocaleString()}
                         </p>
                       </div>
-                    </div>
 
-                    <div className="space-y-2">
-                      {status === "Active" && hasRequiredTokens && (
-                        <>
-                          <Input
-                            type="text"
-                            placeholder="Amount of DS tokens to redeem (must be divisible by 100)"
-                            className="bg-gray-800 border-gray-700"
-                            value={
-                              redeemInput.vaultId === vaultId
-                                ? redeemInput.amount
-                                : ""
-                            }
-                            onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                              setRedeemInput({
-                                vaultId: vaultId,
-                                amount: e.target.value,
-                              })
-                            }
-                          />
-                          <Button
-                            onClick={() => handleRedeemDepegSwap(vault)}
-                            disabled={
-                              vaultLoadingStates.redeemDepegSwap ||
-                              !redeemInput.amount
-                            }
-                            className="w-full bg-blue-600 hover:bg-blue-700"
-                          >
-                            {vaultLoadingStates.redeemDepegSwap ? (
-                              <div className="flex items-center">
-                                <ClipLoader
-                                  size={16}
-                                  color="#ffffff"
-                                  className="mr-2"
-                                />
-                                Redeeming Depeg Swap...
-                              </div>
-                            ) : (
-                              "Redeem Depeg Swap"
-                            )}
-                          </Button>
-                        </>
-                      )}
+                      <div className="space-y-2">
+                        <h5 className="text-sm font-semibold">
+                          Vault Contents:
+                        </h5>
+                        <div className="bg-gray-800/50 p-3 rounded-lg space-y-1 text-sm">
+                          <p>
+                            Pegged Coin ({peggedType}):{" "}
+                            {formatBalance(peggedVault?.balance || "0")}
+                          </p>
+                          <p>
+                            Underlying Coin ({underlyingType}):{" "}
+                            {formatBalance(underlyingVault?.balance || "0")}
+                          </p>
+                        </div>
+                      </div>
 
-                      {underwriterCaps?.data &&
-                        underwriterCaps.data.length > 0 && (
-                          <Button
-                            onClick={() => handleRedeemUnderlying(vault)}
-                            disabled={vaultLoadingStates.redeemUnderwriter}
-                            className="w-full bg-red-600 hover:bg-red-700"
-                          >
-                            {vaultLoadingStates.redeemUnderwriter ? (
-                              <div className="flex items-center">
-                                <ClipLoader
-                                  size={16}
-                                  color="#ffffff"
-                                  className="mr-2"
-                                />
-                                Redeeming as Underwriter...
-                              </div>
-                            ) : (
-                              "Redeem as Underwriter"
-                            )}
-                          </Button>
+                      <div className="space-y-2">
+                        {status === "Active" && hasRequiredTokens && (
+                          <>
+                            <Input
+                              type="text"
+                              placeholder="Amount of DS tokens to redeem (must be divisible by 100)"
+                              className="bg-gray-800 border-gray-700"
+                              value={
+                                redeemInput.vaultId === vaultId
+                                  ? redeemInput.amount
+                                  : ""
+                              }
+                              onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                                setRedeemInput({
+                                  vaultId: vaultId,
+                                  amount: e.target.value,
+                                })
+                              }
+                            />
+                            <Button
+                              onClick={() => handleRedeemDepegSwap(vault)}
+                              disabled={
+                                vaultLoadingStates.redeemDepegSwap ||
+                                !redeemInput.amount
+                              }
+                              className="w-full bg-blue-600 hover:bg-blue-700"
+                            >
+                              {vaultLoadingStates.redeemDepegSwap ? (
+                                <div className="flex items-center">
+                                  <ClipLoader
+                                    size={16}
+                                    color="#ffffff"
+                                    className="mr-2"
+                                  />
+                                  Redeeming Depeg Swap...
+                                </div>
+                              ) : (
+                                "Redeem Depeg Swap"
+                              )}
+                            </Button>
+                          </>
                         )}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+
+                        {underwriterCaps?.data &&
+                          underwriterCaps.data.length > 0 && (
+                            <Button
+                              onClick={() => handleRedeemUnderlying(vault)}
+                              disabled={vaultLoadingStates.redeemUnderwriter}
+                              className="w-full bg-red-600 hover:bg-red-700"
+                            >
+                              {vaultLoadingStates.redeemUnderwriter ? (
+                                <div className="flex items-center">
+                                  <ClipLoader
+                                    size={16}
+                                    color="#ffffff"
+                                    className="mr-2"
+                                  />
+                                  Redeeming as Underwriter...
+                                </div>
+                              ) : (
+                                "Redeem as Underwriter"
+                              )}
+                            </Button>
+                          )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              }
+            )}
           </div>
         )}
       </div>
