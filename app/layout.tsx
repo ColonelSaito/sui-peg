@@ -7,9 +7,9 @@ import WalletProvider from "@/components/wallet-provider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "wBTC Depeg Swap - Insurance Against Depeg Events",
+  title: "Depeg Swap - Insurance Against Depeg Events",
   description:
-    "Protect your wBTC assets from depeg events or earn premiums as an underwriter",
+    "Protect your assets from depeg events or earn premiums as an underwriter",
   generator: "v0.dev",
 };
 

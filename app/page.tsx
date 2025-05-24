@@ -15,14 +15,15 @@ export default function LandingPage() {
         <div className="container relative z-10 px-4 py-24 md:py-32 mx-auto">
           <div className="max-w-3xl mx-auto text-center">
             <div className="inline-block px-3 py-1 mb-6 text-sm font-medium text-purple-300 bg-purple-900/30 rounded-full">
-              Protect Your wBTC Assets
+              Protect Your Assets
             </div>
             <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400">
-              Insurance Against wBTC Depeg Events
+              Insurance Against Depeg Events
             </h1>
             <p className="text-lg md:text-xl text-gray-300 mb-8">
-              The first decentralized platform for hedging against LBTC depeg
-              risk. Underwrite to earn premiums or hedge to protect your assets.
+              Fixed-yield hedge for BTC LSTs, SUI staking tokens, and
+              stablecoins—protect or speculate on de-peg risk with a single
+              transaction
             </p>
             <Link href="/hedge">
               <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-6 rounded-lg text-lg font-medium">
@@ -43,11 +44,11 @@ export default function LandingPage() {
         <div className="container px-4 mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Benefits of wBTC Depeg Swap
+              Benefits of Depeg Swap
             </h2>
             <p className="text-gray-400 max-w-2xl mx-auto">
               Our platform provides unique advantages for both underwriters and
-              hedgers in the wBTC ecosystem
+              hedgers in the ecosystem
             </p>
           </div>
 
@@ -56,8 +57,8 @@ export default function LandingPage() {
               <Shield className="h-12 w-12 text-purple-400 mb-4" />
               <h3 className="text-xl font-semibold mb-2">Risk Protection</h3>
               <p className="text-gray-400">
-                Hedge against LBTC depeg events and protect your assets from
-                market volatility
+                Hedge against depeg events and protect your assets from market
+                volatility
               </p>
             </div>
 
@@ -101,7 +102,7 @@ export default function LandingPage() {
         <div className="container px-4 mx-auto text-center">
           <div className="max-w-3xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-bold mb-6">
-              Ready to Secure Your wBTC Position?
+              Ready to Secure Your Position?
             </h2>
             <p className="text-lg text-gray-300 mb-8">
               Join our platform today to either earn premiums as an underwriter
@@ -132,12 +133,11 @@ export default function LandingPage() {
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="mb-4 md:mb-0">
               <h3 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-blue-400">
-                wBTC Depeg Swap
+                Depeg Swap
               </h3>
             </div>
             <div className="text-gray-400 text-sm">
-              © {new Date().getFullYear()} wBTC Depeg Swap. All rights
-              reserved.
+              © {new Date().getFullYear()} Depeg Swap. All rights reserved.
             </div>
           </div>
         </div>

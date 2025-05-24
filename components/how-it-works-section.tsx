@@ -11,7 +11,7 @@ export default function HowItWorksSection() {
           <h2 className="text-3xl md:text-4xl font-bold mb-4">How It Works</h2>
           <p className="text-gray-400 max-w-2xl mx-auto">
             Our platform connects underwriters and hedgers to create a market
-            for wBTC depeg insurance
+            for depeg insurance
           </p>
         </div>
 

@@ -101,52 +101,6 @@ export default function TokenFlowIllustration({
             </div>
           </div>
         </div>
-
-        {/* Main Illustration */}
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-          <div className="relative w-[200px] h-[100px]">
-            {/* wBTC Token Animation */}
-            <div
-              className={`absolute left-0 top-0 transition-all duration-1000 ease-in-out ${
-                step >= 0
-                  ? step > 0
-                    ? "opacity-0 translate-x-[100px]"
-                    : "opacity-100"
-                  : ""
-              }`}
-            >
-              <div className="bg-cyan-900/50 p-3 rounded-full border border-cyan-500/30">
-                <CoinsIcon className="h-8 w-8 text-cyan-300" />
-              </div>
-            </div>
-
-            {/* LBTC Token Animation */}
-            <div
-              className={`absolute left-0 bottom-0 transition-all duration-1000 ease-in-out ${
-                step >= 1
-                  ? step > 1
-                    ? "opacity-0 translate-x-[100px]"
-                    : "opacity-100"
-                  : "opacity-0"
-              }`}
-            >
-              <div className="bg-green-900/50 p-3 rounded-full border border-green-500/30">
-                <CoinsIcon className="h-8 w-8 text-green-300" />
-              </div>
-            </div>
-
-            {/* Depeg Token Animation */}
-            <div
-              className={`absolute right-0 top-[25px] transition-all duration-1000 ease-in-out ${
-                step >= 2 ? "opacity-100" : "opacity-0"
-              }`}
-            >
-              <div className="bg-purple-900/50 p-3 rounded-full border border-purple-500/30">
-                <Shield className="h-8 w-8 text-purple-300" />
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     );
   }
@@ -223,52 +177,6 @@ export default function TokenFlowIllustration({
             </div>
           </div>
         </div>
-
-        {/* Main Illustration */}
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-          <div className="relative w-[200px] h-[100px]">
-            {/* USDC Token Animation */}
-            <div
-              className={`absolute right-0 top-0 transition-all duration-1000 ease-in-out ${
-                step >= 0
-                  ? step > 0
-                    ? "opacity-0 translate-x-[-100px]"
-                    : "opacity-100"
-                  : ""
-              }`}
-            >
-              <div className="bg-blue-900/50 p-3 rounded-full border border-blue-500/30">
-                <DollarSign className="h-8 w-8 text-blue-300" />
-              </div>
-            </div>
-
-            {/* LBTC Token Animation */}
-            <div
-              className={`absolute right-0 bottom-0 transition-all duration-1000 ease-in-out ${
-                step >= 1
-                  ? step > 1
-                    ? "opacity-0 translate-x-[-100px]"
-                    : "opacity-100"
-                  : "opacity-0"
-              }`}
-            >
-              <div className="bg-green-900/50 p-3 rounded-full border border-green-500/30">
-                <CoinsIcon className="h-8 w-8 text-green-300" />
-              </div>
-            </div>
-
-            {/* Depeg Token Animation */}
-            <div
-              className={`absolute left-0 top-[25px] transition-all duration-1000 ease-in-out ${
-                step >= 2 ? "opacity-100" : "opacity-0"
-              }`}
-            >
-              <div className="bg-purple-900/50 p-3 rounded-full border border-purple-500/30">
-                <Shield className="h-8 w-8 text-purple-300" />
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     );
   }
@@ -342,59 +250,6 @@ export default function TokenFlowIllustration({
             {step === 1 && "Hedgers can claim wBTC using their depeg tokens"}
             {step === 2 &&
               "After Maturity: Underwriters claim all remaining tokens"}
-          </div>
-        </div>
-      </div>
-
-      {/* Main Illustration */}
-      <div className="absolute top-[45%] left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-        <div className="relative w-[300px] h-[100px] flex items-center justify-center">
-          {/* Depeg Event Illustration */}
-          <div
-            className={`absolute left-[50px] transition-all duration-1000 ease-in-out ${
-              step === 0 ? "opacity-100 scale-110" : "opacity-40 scale-100"
-            }`}
-          >
-            <div className="bg-cyan-900/50 p-3 rounded-full border border-cyan-500/30">
-              <AlertTriangle className="h-10 w-10 text-cyan-300" />
-            </div>
-          </div>
-
-          {/* Hedger Claims Illustration */}
-          <div
-            className={`absolute transition-all duration-1000 ease-in-out ${
-              step === 1 ? "opacity-100 scale-110" : "opacity-40 scale-100"
-            }`}
-          >
-            <div className="flex flex-col items-center">
-              <div className="bg-blue-900/50 p-3 rounded-full border border-blue-500/30 mb-2">
-                <Shield className="h-10 w-10 text-blue-300" />
-              </div>
-              <div className="bg-cyan-900/50 p-2 rounded-full border border-cyan-500/30">
-                <CoinsIcon className="h-6 w-6 text-cyan-300" />
-              </div>
-            </div>
-          </div>
-
-          {/* Underwriter Claims Illustration */}
-          <div
-            className={`absolute right-[50px] transition-all duration-1000 ease-in-out ${
-              step === 2 ? "opacity-100 scale-110" : "opacity-40 scale-100"
-            }`}
-          >
-            <div className="flex flex-col items-center">
-              <div className="bg-purple-900/50 p-3 rounded-full border border-purple-500/30 mb-2">
-                <Wallet className="h-10 w-10 text-purple-300" />
-              </div>
-              <div className="flex">
-                <div className="bg-cyan-900/50 p-2 rounded-full border border-cyan-500/30 mr-2">
-                  <CoinsIcon className="h-6 w-6 text-cyan-300" />
-                </div>
-                <div className="bg-green-900/50 p-2 rounded-full border border-green-500/30">
-                  <CoinsIcon className="h-6 w-6 text-green-300" />
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
