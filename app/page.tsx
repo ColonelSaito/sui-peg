@@ -3,23 +3,49 @@ import { ArrowRight, Shield, Coins, Clock, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import HowItWorksSection from "@/components/how-it-works-section";
 import FaqSection from "@/components/faq-section";
+import Image from "next/image";
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-black text-white">
+      {/* Navigation */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-black/50 backdrop-blur-sm border-b border-gray-800">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-20">
+            <Link href="/" className="flex items-center gap-3">
+              <Image
+                src="/suipeg-no-text.png"
+                alt="Suipeg Logo"
+                width={56}
+                height={56}
+                className="w-14 h-14"
+              />
+            </Link>
+            <div className="hidden md:flex items-center gap-8">
+              <Link href="/hedge" className="text-gray-300 hover:text-white transition-colors">
+                Hedge
+              </Link>
+              <Link href="/underwrite" className="text-gray-300 hover:text-white transition-colors">
+                Underwrite
+              </Link>
+              <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white">
+                Launch App
+              </Button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
       {/* Hero Section */}
-      <section className="relative overflow-hidden">
+      <section className="relative overflow-hidden pt-20">
         <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-blue-900/20 to-black z-0" />
         <div className="absolute inset-0 bg-[url('/abstract-digital-grid.png')] bg-cover bg-center opacity-10 z-0" />
         <div className="container relative z-10 px-4 py-24 md:py-32 mx-auto">
           <div className="max-w-3xl mx-auto text-center">
-            <div className="inline-block px-3 py-1 mb-6 text-sm font-medium text-purple-300 bg-purple-900/30 rounded-full">
-              Protect Your Assets
-            </div>
             <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400">
               Insurance Against Depeg Events
             </h1>
-            <p className="text-lg md:text-xl text-gray-300 mb-8">
+            <p className="text-lg md:text-xl text-gray-300 mb-8 font-sembold">
               Fixed-yield hedge for BTC LSTs, SUI staking tokens, and
               stablecoins—protect or speculate on de-peg risk with a single
               transaction
@@ -42,7 +68,7 @@ export default function LandingPage() {
         <div className="container px-4 mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Benefits of Depeg Swap
+              Benefits of Suipeg
             </h2>
             <p className="text-gray-400 max-w-2xl mx-auto">
               Our platform provides unique advantages for both underwriters and
@@ -129,13 +155,16 @@ export default function LandingPage() {
       <footer className="py-10 border-t border-gray-800">
         <div className="container px-4 mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="mb-4 md:mb-0">
-              <h3 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-blue-400">
-                Depeg Swap
-              </h3>
+            <div className="mb-4 md:mb-0 flex items-center gap-3">
+              <Image
+                src="/suipeg-no-text.png"
+                alt="Suipeg Logo"
+                width={48}
+                height={48}
+              />
             </div>
             <div className="text-gray-400 text-sm">
-              © {new Date().getFullYear()} Depeg Swap. All rights reserved.
+              © {new Date().getFullYear()} Suipeg. All rights reserved.
             </div>
           </div>
         </div>
