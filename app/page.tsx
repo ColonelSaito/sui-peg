@@ -42,6 +42,9 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-[url('/abstract-digital-grid.png')] bg-cover bg-center opacity-10 z-0" />
         <div className="container relative z-10 px-4 py-24 md:py-32 mx-auto">
           <div className="max-w-3xl mx-auto text-center">
+            <div className="inline-block px-3 py-1 mb-6 text-sm font-medium text-purple-300 bg-purple-900/30 rounded-full">
+              Protect Your Assets
+            </div>
             <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400">
               Insurance Against Depeg Events
             </h1>
