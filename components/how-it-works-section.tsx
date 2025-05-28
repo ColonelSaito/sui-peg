@@ -11,7 +11,7 @@ export default function HowItWorksSection() {
           <h2 className="text-3xl md:text-4xl font-bold mb-[50px]">
             Supported Tokens
           </h2>
-          <p className="flex justify-center space-x-[200px]">
+          <div className="flex justify-center space-x-[200px]">
             <div
               className="flex items-center"
               style={{ transform: "translateX(72px)" }}
@@ -43,7 +43,7 @@ export default function HowItWorksSection() {
                 src="/sSui.png"
               />
             </div>
-          </p>
+          </div>
         </div>
 
         <div className="text-center mb-16">
