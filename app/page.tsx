@@ -156,7 +156,7 @@ export default function LandingPage() {
                   Start Hedging
                 </Button>
               </Link>
-              <Link href="/hedge">
+              <Link href="/underwrite">
                 <Button
                   variant="outline"
                   className="border-purple-500 text-purple-400 hover:bg-purple-900/20 px-8 py-6 rounded-lg text-lg font-medium w-full sm:w-auto"

@@ -128,6 +128,7 @@ export function VaultList() {
   });
 
   // Get vault IDs directly from the registry's vaults vector
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const registryContent = registryData?.data?.content as any;
   const vaultIds = registryContent?.fields?.vaults || [];
   const shouldFetchVaults = vaultIds.length > 0;
@@ -166,6 +167,7 @@ export function VaultList() {
       return;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const vaultContent = vault.data.content as any;
     if (!vaultContent?.fields) {
       toast.error("Invalid vault data!");
@@ -385,17 +387,8 @@ export function VaultList() {
       return;
     }
 
-    const vaultContent = vault.data?.content as unknown as {
-      dataType: "moveObject";
-      fields: {
-        pegged_vault: {
-          type: string;
-        };
-        underlying_vault: {
-          type: string;
-        };
-      };
-    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const vaultContent = vault.data?.content as any;
 
     if (!vaultContent?.fields) {
       alert("Invalid vault data!");
@@ -548,6 +541,7 @@ export function VaultList() {
               Vaults
             </Text>
             {vaultObjectsData.map((vault: SuiObjectResponse) => {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const content = vault.data?.content as any;
               const fields = content?.fields || {};
               const status =

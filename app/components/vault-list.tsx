@@ -169,6 +169,7 @@ export default function VaultList() {
   });
 
   // Get vault IDs directly from the registry's vaults vector
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const registryContent = registryData?.data?.content as any;
   const vaultIds = registryContent?.fields?.vaults || [];
   const shouldFetchVaults = vaultIds.length > 0;
@@ -270,6 +271,8 @@ export default function VaultList() {
         return;
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // @ts-expect-error - Complex Sui blockchain type conversion
       const vaultContent = vault.data.content as VaultContent;
       if (!vaultContent?.fields) {
         toast.error("Invalid vault data!");
@@ -514,6 +517,8 @@ export default function VaultList() {
         return;
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // @ts-expect-error - Complex Sui blockchain type conversion
       const vaultContent = vault.data?.content as VaultContent;
       if (!vaultContent?.fields) {
         toast.error("Invalid vault data!");
@@ -678,6 +683,8 @@ export default function VaultList() {
             <h4 className="text-lg font-semibold">Vaults</h4>
             {[vaultObjectsData[vaultObjectsData.length - 1]].map(
               (vault: SuiObjectResponse) => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                // @ts-expect-error - Complex Sui blockchain type conversion
                 const content = vault.data?.content as VaultContent;
                 const fields = content?.fields || {};
                 const status =
@@ -691,13 +698,15 @@ export default function VaultList() {
                 const underlyingVault = fields.underlying_vault?.fields;
 
                 // Get coin types from the vault fields
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const peggedType =
-                  peggedVault?.type
+                  (peggedVault as any)?.type
                     ?.match(/Coin<(.+)>/)?.[1]
                     ?.split("::")
                     .pop() || "Unknown";
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const underlyingType =
-                  underlyingVault?.type
+                  (underlyingVault as any)?.type
                     ?.match(/Coin<(.+)>/)?.[1]
                     ?.split("::")
                     .pop() || "Unknown";
