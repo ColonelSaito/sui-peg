@@ -1,13 +1,13 @@
 import type React from "react";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "@/components/theme-provider";
-import WalletProvider from "@/components/wallet-provider";
+import { ThemeProvider } from "./components/theme-provider";
+import WalletProvider from "./components/wallet-provider";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "Depeg Swap - Insurance Against Depeg Events",
+  title: "Suipeg - Insurance Against Depeg Events",
   description:
     "Protect your assets from depeg events or earn premiums as an underwriter",
   generator: "v0.dev",

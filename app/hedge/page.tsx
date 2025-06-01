@@ -1,17 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "../components/ui/card";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
 import { ArrowLeft, Info, Send } from "lucide-react";
 import { useState, type ChangeEvent, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -19,19 +19,17 @@ import {
   useCurrentAccount,
   useSuiClientQuery,
   useSignAndExecuteTransaction,
-  useSuiClient,
 } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
 import { networkConfig, useNetworkVariable } from "../src/networkConfig";
 import { Toaster } from "react-hot-toast";
 import toast from "react-hot-toast";
-import VaultList from "@/components/vault-list";
-import CreateVault from "@/components/create-vault";
+import VaultList from "../components/vault-list";
+import CreateVault from "../components/create-vault";
 import { ClipLoader } from "react-spinners";
-import ConnectButtonWrapper from "@/components/connect-button-wrapper";
+import ConnectButtonWrapper from "../components/connect-button-wrapper";
 
 import React from "react";
-import ReactDOM from "react-dom/client";
 import "@mysten/dapp-kit/dist/index.css";
 import "@radix-ui/themes/styles.css";
 
@@ -60,7 +58,6 @@ export default function HedgePageDefault() {
 function HedgePage() {
   const currentAccount = useCurrentAccount();
   const depegSwapPackageId = useNetworkVariable("depegSwapPackageId");
-  const suiClient = useSuiClient();
   const { mutate: signAndExecute, isPending: isTransactionPending } =
     useSignAndExecuteTransaction();
   const queryClient = useQueryClient();
@@ -90,7 +87,7 @@ function HedgePage() {
   };
 
   // Query for user's coins
-  const { data: userCoins, isPending: isCoinsLoading } = useSuiClientQuery(
+  const { data: userCoins } = useSuiClientQuery(
     "getAllCoins",
     {
       owner: currentAccount?.address || "",
