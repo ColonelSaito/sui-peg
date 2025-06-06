@@ -1,7 +1,7 @@
 module depeg_swap::registry {
     use sui::clock::{Clock};
     use sui::coin::Coin;
-    use depeg_swap::vault::{Self, VaultTreasury};
+    use depeg_swap::vault::{Self};
 
     // Registry witness for initialization
     public struct REGISTRY has drop {}
@@ -23,7 +23,6 @@ module depeg_swap::registry {
     #[allow(lint(self_transfer, share_owned))]
     public fun create_vault_collection<P, U>(
         registry: &mut VaultRegistry,
-        treasury: &mut VaultTreasury,
         pegged: Coin<P>,
         underlying: Coin<U>,
         expiry: u64,
@@ -31,8 +30,7 @@ module depeg_swap::registry {
         ctx: &mut TxContext
     ): ID {
         // Create the initial vault
-        let (ds_coins, vault, underwriter_cap) = vault::create_vault(
-            treasury,
+        let (ds_coins, vault, underwriter_cap) = vault::create(
             pegged,
             underlying,
             expiry,
