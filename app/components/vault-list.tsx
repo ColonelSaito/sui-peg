@@ -15,7 +15,6 @@ import {
 } from "@mysten/dapp-kit";
 import {
   TESTNET_VAULT_REGISTRY_ID,
-  TESTNET_VAULT_TREASURY_ID,
 } from "../src/constants";
 import { useNetworkVariable } from "../src/networkConfig";
 import type { SuiObjectResponse, CoinStruct } from "@mysten/sui/client";
@@ -387,7 +386,6 @@ export default function VaultList() {
 
       console.log("Transaction input", {
         vaultId: vault.data.objectId,
-        treasuryId: TESTNET_VAULT_TREASURY_ID,
         clockId: "0x6",
         splitDsToken,
         splitPeggedToken,
@@ -398,7 +396,6 @@ export default function VaultList() {
         typeArguments: [peggedType, underlyingType],
         arguments: [
           tx.object(vault.data.objectId),
-          tx.object(TESTNET_VAULT_TREASURY_ID),
           splitDsToken,
           splitPeggedToken,
           tx.object("0x6"),
@@ -409,7 +406,6 @@ export default function VaultList() {
         underlying_coin,
       });
 
-      console.log();
       tx.transferObjects(
         [underlying_coin, splitPeggedToken, splitDsToken],
         currentAccount.address

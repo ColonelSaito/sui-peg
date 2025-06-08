@@ -6,9 +6,10 @@ module depeg_swap::depeg_swap_tests {
     use sui::test_utils::{assert_eq, destroy};
     use sui::test_scenario::ctx;
     
-    use depeg_swap::vault::{Self, VAULT, UnderwriterCap, VaultTreasury};
+    use depeg_swap::vault::{Self, UnderwriterCap};
     use depeg_swap::registry::{Self, VaultRegistry};
     use depeg_swap::vault::Vault;
+    use depeg_swap::vault::DepegSwapToken;
     
     public struct PEGGED has store {}
     public struct UNDERLYING has store {}
@@ -50,7 +51,6 @@ module depeg_swap::depeg_swap_tests {
         let expiry_offset_ms = 3_600_000; // 1 hour in milliseconds
         
         {
-            vault::init_for_testing(ctx(&mut scenario));
             registry::init_for_testing(ctx(&mut scenario));
         };
         
@@ -58,7 +58,6 @@ module depeg_swap::depeg_swap_tests {
 
 
         let mut vault_registry = test_scenario::take_shared<VaultRegistry>(&scenario);
-        let mut treasury = test_scenario::take_shared<VaultTreasury>(&scenario);
         
         {
             let pegged_coins = test_scenario::take_from_sender<Coin<PEGGED>>(&scenario);
@@ -72,7 +71,6 @@ module depeg_swap::depeg_swap_tests {
 
             registry::create_vault_collection<PEGGED, UNDERLYING>(
                 &mut vault_registry,
-                &mut treasury,
                 pegged_coins,
                 underlying_coins,
                 expiry_time_ms,
@@ -83,7 +81,7 @@ module depeg_swap::depeg_swap_tests {
             // Advance tx to complete transfers 
             test_scenario::next_tx(&mut scenario, ADMIN);
 
-            let ds_coins = test_scenario::take_from_sender<Coin<VAULT>>(&scenario);
+            let ds_coins = test_scenario::take_from_sender<Coin<DepegSwapToken<PEGGED, UNDERLYING>>>(&scenario);
             let ds_coins_value = coin::value(&ds_coins);
             assert_eq(ds_coins_value, expected_ds_minted);
 
@@ -91,7 +89,6 @@ module depeg_swap::depeg_swap_tests {
         };
         
         test_scenario::return_shared(vault_registry);
-        test_scenario::return_shared(treasury);
         
         destroy(clock);
         test_scenario::end(scenario);
@@ -105,14 +102,12 @@ module depeg_swap::depeg_swap_tests {
         let expiry_offset_ms = 3_600_000;
         
         {
-            vault::init_for_testing(ctx(&mut scenario));
             registry::init_for_testing(ctx(&mut scenario));
         };
         
         test_scenario::next_tx(&mut scenario, ADMIN);
         
         let mut vault_registry = test_scenario::take_shared<VaultRegistry>(&scenario);
-        let mut treasury = test_scenario::take_shared<VaultTreasury>(&scenario);
         
         let vault_id: ID;
         {
@@ -124,7 +119,6 @@ module depeg_swap::depeg_swap_tests {
 
             vault_id = registry::create_vault_collection<PEGGED, UNDERLYING>(
                 &mut vault_registry,
-                &mut treasury,
                 pegged_coins,
                 underlying_coins,
                 expiry_time_ms,
@@ -134,7 +128,7 @@ module depeg_swap::depeg_swap_tests {
 
             test_scenario::next_tx(&mut scenario, ADMIN);
 
-            let ds_coins = test_scenario::take_from_sender<Coin<VAULT>>(&scenario);
+            let ds_coins = test_scenario::take_from_sender<Coin<DepegSwapToken<PEGGED, UNDERLYING>>>(&scenario);
             transfer::public_transfer(ds_coins, USER);
         };
    
@@ -144,12 +138,11 @@ module depeg_swap::depeg_swap_tests {
         let mut vault_obj = test_scenario::take_shared_by_id<Vault<PEGGED, UNDERLYING>>(&scenario, vault_id);
 
         {
-            let mut ds_coins = test_scenario::take_from_sender<Coin<VAULT>>(&scenario);
+            let mut ds_coins = test_scenario::take_from_sender<Coin<DepegSwapToken<PEGGED, UNDERLYING>>>(&scenario);
             let mut pegged_coins = test_scenario::take_from_sender<Coin<PEGGED>>(&scenario);
             
             let redeemed_underlying_coins = vault::redeem_depeg_swap(
                 &mut vault_obj,
-                &mut treasury,
                 &mut ds_coins,
                 &mut pegged_coins,
                 &clock,
@@ -161,7 +154,6 @@ module depeg_swap::depeg_swap_tests {
             transfer::public_transfer(redeemed_underlying_coins, USER);
         };
         
-        test_scenario::return_shared(treasury);
         test_scenario::return_shared(vault_registry);
         test_scenario::return_shared(vault_obj);
 
@@ -177,14 +169,12 @@ module depeg_swap::depeg_swap_tests {
         let expiry_offset_ms = 3_600_000;
         
         {
-            vault::init_for_testing(ctx(&mut scenario));
             registry::init_for_testing(ctx(&mut scenario));
         };
         
         test_scenario::next_tx(&mut scenario, ADMIN);
         
         let mut vault_registry = test_scenario::take_shared<VaultRegistry>(&scenario);
-        let mut treasury = test_scenario::take_shared<VaultTreasury>(&scenario);
         
         let vault_id: ID;
         {
@@ -196,7 +186,6 @@ module depeg_swap::depeg_swap_tests {
 
             vault_id = registry::create_vault_collection<PEGGED, UNDERLYING>(
                 &mut vault_registry,
-                &mut treasury,
                 pegged_coins,
                 underlying_coins,
                 expiry_time_ms,
@@ -206,7 +195,6 @@ module depeg_swap::depeg_swap_tests {
         };
         
         test_scenario::return_shared(vault_registry);
-        test_scenario::return_shared(treasury);
         test_scenario::next_tx(&mut scenario, ADMIN);
         
         clock::increment_for_testing(&mut clock, expiry_offset_ms + 1000);

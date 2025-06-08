@@ -1,41 +1,33 @@
 module depeg_swap::vault {
-    use sui::coin::{Self, Coin, TreasuryCap};
+    use sui::coin::{Self, Coin};
     use sui::clock::{Self, Clock};
     use sui::event;
-    use sui::types;
+    use sui::balance::{Supply, Balance, create_supply, increase_supply};
 
     // Error codes
     const E_EXPIRED: u64 = 0;
     const E_BAD_INPUT: u64 = 1;
     const E_INSUFFICIENT_VAULT_DS_SUPPLY: u64 = 2;
-    const E_BAD_WITNESS: u64 = 3;
 
     const DEPEG_SWAP_CONVERSION_RATE: u64 = 100;
 
-    // Vault witness for initialization
-    public struct VAULT has drop {}
+    // Vault token for the vault (depeg swap)
+    public struct DepegSwapToken<phantom P, phantom U> has drop {}
 
     // The underwriter cap is no longer tied to a specific token type
     public struct UnderwriterCap has key, store { 
-        id: UID,
-    }
-
-    // Store the treasury cap
-    public struct VaultTreasury has key {
-        id: UID,
-        cap: TreasuryCap<VAULT>
+        id: object::UID,
     }
 
     // Event Types
     public struct VaultCreatedEvent has copy, drop {
-        vault_id: ID,
+        vault_id: object::ID,
         expiry: u64,
-        ds_token_id: ID,
     }
 
     public struct DepegSwapRedeemedEvent has copy, drop {
         redeemer: address,
-        vault_id: ID,
+        vault_id: object::ID,
         burned_ds_amount: u64,
         returned_pegged_value: u64,
         claimed_underlying_value: u64,
@@ -43,7 +35,7 @@ module depeg_swap::vault {
 
     public struct UnderlyingRedeemedEvent has copy, drop {
         redeemer: address,
-        vault_id: ID,
+        vault_id: object::ID,
         redeemed_underlying_value: u64,
         redeemed_pegged_value: u64,
     }
@@ -51,47 +43,20 @@ module depeg_swap::vault {
     // Vault structure
     #[allow(lint(coin_field))]
     public struct Vault<phantom P, phantom U> has key, store {
-        id: UID,
-        pegged_vault: Coin<P>,    
-        underlying_vault: Coin<U>, 
-        total_ds: u64,             
-        expiry: u64,               
+        id: object::UID,
+        pegged_coin: Balance<P>,    
+        underlying_coin: Balance<U>,             
+        expiry: u64,         
+        depeg_swap_token_supply: Supply<DepegSwapToken<P, U>>,
     }
 
-    fun init(witness: VAULT, ctx: &mut TxContext) {
-        assert!(types::is_one_time_witness(&witness), E_BAD_WITNESS);
-        
-        // Create the currency
-        let (treasury_cap, metadata) = coin::create_currency(
-            witness,
-            9,
-            b"DS",
-            b"Depeg Swap",
-            b"Depeg Swap is a fixed-yield depeg swap on Sui.",
-            option::none(),
-            ctx
-        );
-
-        // Create and share the treasury
-        let treasury = VaultTreasury {
-            id: object::new(ctx),
-            cap: treasury_cap
-        };
-        transfer::share_object(treasury);
-
-        // Freeze the metadata, technially should be updateable for "create_vault"
-        transfer::public_freeze_object(metadata);
-    }
-
-    // Create a new vault
-    public(package) fun create_vault<P, U>(
-        treasury: &mut VaultTreasury,
+    public(package) fun create<P, U>(
         pegged: Coin<P>,
         underlying: Coin<U>,
         expiry: u64,
         clock: &Clock,
         ctx: &mut TxContext
-    ): (Coin<VAULT>, Vault<P, U>, UnderwriterCap) {
+    ): (Coin<DepegSwapToken<P, U>>, Vault<P, U>, UnderwriterCap) {
         let pegged_value = coin::value(&pegged);
         let underlying_value = coin::value(&underlying);
         assert!(pegged_value == underlying_value, E_BAD_INPUT);
@@ -100,43 +65,45 @@ module depeg_swap::vault {
         // Ensure expiry is in the future
         assert!(expiry > clock::timestamp_ms(clock), E_EXPIRED);
 
+        // Calculate how much depeg swap tokens to mint based on conversion rate
         let total_ds = pegged_value * DEPEG_SWAP_CONVERSION_RATE;
         
-        // Mint the tokens for this vault
-        let depeg_swap_coins = coin::mint<VAULT>(&mut treasury.cap, total_ds, ctx);
+        // Create the supply for depeg swap tokens
+        let mut depeg_swap_token_supply = create_supply(DepegSwapToken<P, U> {});
         
-        // Get the token ID for the event
-        let ds_token_id = object::id(&depeg_swap_coins);
+        // Mint the depeg swap tokens that will be returned to the user
+        let ds_token_balance = increase_supply(&mut depeg_swap_token_supply, total_ds);
+        let ds_coins = coin::from_balance(ds_token_balance, ctx);
 
-        // Create the vault
+        // Create the vault with the supply stored
         let vault = Vault {
             id: object::new(ctx),
-            pegged_vault: pegged,
-            underlying_vault: underlying,
-            total_ds,
+            pegged_coin: coin::into_balance(pegged),
+            underlying_coin: coin::into_balance(underlying),
             expiry,
+            depeg_swap_token_supply,
         };
+
         let vault_id = object::id(&vault);
 
-        event::emit(VaultCreatedEvent { 
-            vault_id,
-            expiry,
-            ds_token_id,
-        });
-
-        // Create and transfer the underwriter cap
+        // Create the underwriter cap
         let underwriter_cap = UnderwriterCap { 
             id: object::new(ctx),
         };
 
-        (depeg_swap_coins, vault, underwriter_cap)
+        event::emit(VaultCreatedEvent {
+            vault_id,
+            expiry,
+        });
+
+        (ds_coins, vault, underwriter_cap)
     }
+
 
     // Redeem Depeg Swap tokens
     public fun redeem_depeg_swap<P, U>(
         vault: &mut Vault<P, U>,
-        treasury: &mut VaultTreasury,
-        ds_coins_to_redeem: &mut Coin<VAULT>,
+        ds_coins_to_redeem: &mut Coin<DepegSwapToken<P, U>>,
         pegged_tokens_to_return: &mut Coin<P>,
         clock: &Clock,
         ctx: &mut TxContext
@@ -147,32 +114,21 @@ module depeg_swap::vault {
         assert!(ds_value_to_redeem > 0, E_BAD_INPUT);
         assert!(ds_value_to_redeem % DEPEG_SWAP_CONVERSION_RATE == 0, E_BAD_INPUT);
 
+        // Check that provided pegged value is equal to expected pegged and underlying value
         let expected_pegged_and_underlying_value = ds_value_to_redeem / DEPEG_SWAP_CONVERSION_RATE;
         let provided_pegged_value = coin::value(pegged_tokens_to_return);
         assert!(provided_pegged_value == expected_pegged_and_underlying_value, E_BAD_INPUT);
-        assert!(ds_value_to_redeem <= vault.total_ds, E_INSUFFICIENT_VAULT_DS_SUPPLY);
 
-        let underlying_coins_for_user_claim = coin::take(
-            coin::balance_mut(&mut vault.underlying_vault), 
-            provided_pegged_value, 
-            ctx
-        );
+        // Check that the vault has enough underlying coins
+        let vault_underlying_value = sui::balance::value(&vault.underlying_coin);
+        assert!(expected_pegged_and_underlying_value <= vault_underlying_value, E_INSUFFICIENT_VAULT_DS_SUPPLY);
 
-        let pegged_tokens_taken = coin::take(
-            coin::balance_mut(pegged_tokens_to_return), 
-            provided_pegged_value, 
-            ctx
-        );
-
-        let ds_tokens_taken = coin::take(
-            coin::balance_mut(ds_coins_to_redeem), 
-            ds_value_to_redeem, 
-            ctx
-        );
-
-        coin::burn(&mut treasury.cap, ds_tokens_taken);
-        coin::join(&mut vault.pegged_vault, pegged_tokens_taken);
-        vault.total_ds = vault.total_ds - ds_value_to_redeem;
+        let underlying_balance = sui::balance::split(&mut vault.underlying_coin, provided_pegged_value);
+        let underlying_coins_for_user_claim = coin::from_balance(underlying_balance, ctx);
+        let pegged_tokens_taken = coin::split(pegged_tokens_to_return, provided_pegged_value, ctx);
+        
+        // Join the returned pegged tokens to vault balance
+        sui::balance::join(&mut vault.pegged_coin, coin::into_balance(pegged_tokens_taken));
 
         event::emit(DepegSwapRedeemedEvent {
             redeemer: tx_context::sender(ctx),
@@ -188,27 +144,22 @@ module depeg_swap::vault {
     // Underwriter claims remaining tokens after expiry
     public fun redeem_underlying<P, U>( 
         vault: &mut Vault<P, U>,
-        cap: &UnderwriterCap,
+        _cap: &UnderwriterCap,
         clock: &Clock,
         ctx: &mut TxContext
     ): (Coin<U>, Coin<P>) {
-        let _ = cap;
         assert!(clock::timestamp_ms(clock) >= vault.expiry, E_EXPIRED);
 
-        let pegged_value = coin::value(&vault.pegged_vault);
-        let underlying_value = coin::value(&vault.underlying_vault);
-        assert!(pegged_value > 0 && underlying_value > 0, E_BAD_INPUT);
+        let pegged_value = sui::balance::value(&vault.pegged_coin);
+        let underlying_value = sui::balance::value(&vault.underlying_coin);
+        assert!(pegged_value > 0 || underlying_value > 0, E_BAD_INPUT);
                 
-        let pegged_tokens_for_underwriter = coin::take(
-            coin::balance_mut(&mut vault.pegged_vault), 
-            pegged_value, 
-            ctx
-        );
-        let underlying_tokens_for_underwriter = coin::take(
-            coin::balance_mut(&mut vault.underlying_vault), 
-            underlying_value, 
-            ctx
-        );
+        // Extract all remaining balances and convert to coins
+        let pegged_balance = sui::balance::split(&mut vault.pegged_coin, pegged_value);
+        let underlying_balance = sui::balance::split(&mut vault.underlying_coin, underlying_value);
+        
+        let pegged_tokens_for_underwriter = coin::from_balance(pegged_balance, ctx);
+        let underlying_tokens_for_underwriter = coin::from_balance(underlying_balance, ctx);
         
         event::emit(UnderlyingRedeemedEvent {
             redeemer: tx_context::sender(ctx),
@@ -218,10 +169,5 @@ module depeg_swap::vault {
         });
         
         (underlying_tokens_for_underwriter, pegged_tokens_for_underwriter)
-    }
-
-    #[test_only]
-    public fun init_for_testing(ctx: &mut TxContext) {
-        init(VAULT {}, ctx)
     }
 }

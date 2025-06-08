@@ -29,7 +29,6 @@ import {
 } from "@mysten/dapp-kit";
 import {
   TESTNET_VAULT_REGISTRY_ID,
-  TESTNET_VAULT_TREASURY_ID,
 } from "../src/constants";
 import { useNetworkVariable } from "../src/networkConfig";
 import type { CoinStruct } from "@mysten/sui/client";
@@ -225,16 +224,6 @@ export default function CreateVault({
     options: { showContent: true },
   });
 
-  // Query for the VaultTreasury object directly
-  const {
-    data: treasuryData,
-    isPending: isTreasuryPending,
-    error: treasuryError,
-  } = useSuiClientQuery("getObject", {
-    id: TESTNET_VAULT_TREASURY_ID,
-    options: { showContent: true },
-  });
-
   async function createVault() {
     if (!currentAccount?.address) {
       console.error("No wallet connected");
@@ -244,7 +233,6 @@ export default function CreateVault({
 
     if (
       !TESTNET_VAULT_REGISTRY_ID ||
-      !TESTNET_VAULT_TREASURY_ID ||
       !selectedPeggedCoin ||
       !selectedUnderlyingCoin
     ) {
@@ -255,8 +243,8 @@ export default function CreateVault({
 
     // Debug: Log object details
     try {
-      const [registry, treasury] = await suiClient.multiGetObjects({
-        ids: [TESTNET_VAULT_REGISTRY_ID, TESTNET_VAULT_TREASURY_ID],
+      const [registry] = await suiClient.multiGetObjects({
+        ids: [TESTNET_VAULT_REGISTRY_ID],
         options: { showOwner: true, showContent: true, showType: true },
       });
 
@@ -268,13 +256,6 @@ export default function CreateVault({
           version: registry.data?.version,
           digest: registry.data?.digest,
         },
-        treasury: {
-          id: treasury.data?.objectId,
-          owner: treasury.data?.owner,
-          type: treasury.data?.type,
-          version: treasury.data?.version,
-          digest: treasury.data?.digest,
-        },
         currentAddress: currentAccount.address,
       });
 
@@ -282,19 +263,10 @@ export default function CreateVault({
       const registryOwner = registry.data?.owner as {
         Shared?: { initial_shared_version: number };
       };
-      const treasuryOwner = treasury.data?.owner as {
-        Shared?: { initial_shared_version: number };
-      };
 
       if (!registryOwner?.Shared) {
         console.error("Registry is not a shared object:", registry.data?.owner);
         toast.error("Registry is not a shared object");
-        return;
-      }
-
-      if (!treasuryOwner?.Shared) {
-        console.error("Treasury is not a shared object:", treasury.data?.owner);
-        toast.error("Treasury is not a shared object");
         return;
       }
 
@@ -305,11 +277,6 @@ export default function CreateVault({
         return;
       }
 
-      if (!treasury.data?.type?.includes("::vault::VaultTreasury")) {
-        console.error("Invalid Treasury type:", treasury.data?.type);
-        toast.error("Invalid Treasury type");
-        return;
-      }
     } catch (error) {
       console.error("Error fetching object details:", error);
       toast.error(
@@ -366,7 +333,6 @@ export default function CreateVault({
     console.log("Transaction Details:", {
       packageId: depegSwapPackageId,
       registryId: TESTNET_VAULT_REGISTRY_ID,
-      treasuryId: TESTNET_VAULT_TREASURY_ID,
       peggedCoin: {
         id: selectedPeggedCoin.id,
         type: selectedPeggedCoin.type,
@@ -407,7 +373,6 @@ export default function CreateVault({
       typeArguments: [selectedPeggedCoin.type, selectedUnderlyingCoin.type],
       arguments: [
         tx.object(TESTNET_VAULT_REGISTRY_ID),
-        tx.object(TESTNET_VAULT_TREASURY_ID),
         splitPeggedCoin,
         splitUnderlyingCoin,
         tx.pure.u64(expiryMs.toString()),
@@ -525,10 +490,10 @@ export default function CreateVault({
     );
   }
 
-  const isLoading = isRegistryPending || isTreasuryPending || isCoinsLoading;
-  const errors = [coinsError, registryError, treasuryError].filter(Boolean);
+  const isLoading = isRegistryPending || isCoinsLoading;
+  const errors = [coinsError, registryError].filter(Boolean);
   const isReady =
-    registryData && treasuryData && userCoins && coinOptions.length > 0;
+    registryData && userCoins && coinOptions.length > 0;
 
   if (errors.length > 0) {
     return (
@@ -567,7 +532,6 @@ export default function CreateVault({
               <p className="text-red-200/80 text-sm mb-4">Missing required vault objects:</p>
               <ul className="text-red-200/60 text-sm space-y-1">
                 {!registryData && <li>• VaultRegistry object not found</li>}
-                {!treasuryData && <li>• VaultTreasury object not found</li>}
               </ul>
             </div>
           </CardContent>
